@@ -1,7 +1,7 @@
 services:
   redis:
     image: redis:7-alpine
-    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:-jarvis_redis_pass}"]
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:-CHANGE_ME_STRONG_PASSWORD_12345}"]
     volumes:
       - redis_data:/data
     healthcheck:
@@ -20,11 +20,13 @@ services:
     ports:
       - "${ORCHESTRATOR_PORT:-8000}:8000"
     environment:
-      - REDIS_URL=redis://:${REDIS_PASSWORD:-jarvis_redis_pass}@redis:6379/0
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-CHANGE_ME_STRONG_PASSWORD_12345}@redis:6379/0
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
     depends_on:
       redis:
         condition: service_healthy
+      ollama:
+        condition: service_started
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 15s
@@ -42,7 +44,7 @@ services:
     ports:
       - "${STT_PORT:-8001}:8001"
     environment:
-      - REDIS_URL=redis://:${REDIS_PASSWORD:-jarvis_redis_pass}@redis:6379/0
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-CHANGE_ME_STRONG_PASSWORD_12345}@redis:6379/0
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
     depends_on:
       redis:
@@ -64,7 +66,7 @@ services:
     ports:
       - "${TTS_PORT:-8002}:8002"
     environment:
-      - REDIS_URL=redis://:${REDIS_PASSWORD:-jarvis_redis_pass}@redis:6379/0
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-CHANGE_ME_STRONG_PASSWORD_12345}@redis:6379/0
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
     depends_on:
       redis:
@@ -86,7 +88,7 @@ services:
     ports:
       - "${MEMORY_PORT:-8003}:8003"
     environment:
-      - REDIS_URL=redis://:${REDIS_PASSWORD:-jarvis_redis_pass}@redis:6379/0
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-CHANGE_ME_STRONG_PASSWORD_12345}@redis:6379/0
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
     depends_on:
       redis:
@@ -108,7 +110,7 @@ services:
     ports:
       - "${TOOLS_PORT:-8004}:8004"
     environment:
-      - REDIS_URL=redis://:${REDIS_PASSWORD:-jarvis_redis_pass}@redis:6379/0
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-CHANGE_ME_STRONG_PASSWORD_12345}@redis:6379/0
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
     depends_on:
       redis:
@@ -123,25 +125,25 @@ services:
       - jarvis_net
     restart: unless-stopped
 
-  # Ollama — uncomment when Phase 1 begins
-  # ollama:
-  #   image: ollama/ollama:latest
-  #   volumes:
-  #     - ollama_models:/root/.ollama
-  #   ports:
-  #     - "${OLLAMA_PORT:-11434}:11434"
-  #   healthcheck:
-  #     test: ["CMD", "ollama", "list"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
-  #   networks:
-  #     - jarvis_net
-  #   restart: unless-stopped
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama_models:/root/.ollama
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - jarvis_net
+    restart: unless-stopped
 
 volumes:
   redis_data:
-  # ollama_models:
+  ollama_models:
 
 networks:
   jarvis_net:

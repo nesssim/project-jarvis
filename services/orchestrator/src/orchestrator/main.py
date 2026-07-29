@@ -2,19 +2,25 @@ from __future__ import annotations
 
 import asyncio
 import signal
-import sys
+import threading
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 import redis.asyncio as redis
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from shared.config import load_settings
+from shared.http import setup_cors
 from shared.logging import get_logger, setup_logging
+from shared.redis import close_redis_clients, create_redis_clients
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
+
+from orchestrator.clients.llm import create_llm_client
+from orchestrator.core.prompt import PromptManager
+from orchestrator.routes.chat import router as chat_router
 
 settings = load_settings()
 setup_logging(
@@ -25,6 +31,7 @@ setup_logging(
 logger = get_logger("orchestrator")
 
 redis_client: redis.Redis | None = None
+redis_binary: redis.Redis | None = None
 _shutdown_event = asyncio.Event()
 
 
@@ -51,58 +58,43 @@ async def check_redis() -> bool:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    global redis_client
+    global redis_client, redis_binary
     logger.info("starting orchestrator", service="orchestrator")
-    redis_client = redis.from_url(
-        settings.redis.url, decode_responses=True, socket_connect_timeout=5
-    )
-    try:
-        await redis_client.ping()
-        logger.info("redis connected")
-    except Exception as e:
-        logger.warning("redis not available at startup", error=str(e))
-        redis_client = None
+    redis_client, redis_binary = await create_redis_clients(settings)
 
-    loop = asyncio.get_event_loop()
-    for sig in (signal.SIGTERM, signal.SIGINT):
-        loop.add_signal_handler(
-            sig, lambda s=sig: asyncio.create_task(handle_shutdown(s))
-        )
+    app.state.llm_client = create_llm_client(settings.llm)
+    app.state.prompt_manager = PromptManager()
+
+    if threading.current_thread() is threading.main_thread():
+        loop = asyncio.get_event_loop()
+        for sig in (signal.SIGTERM, signal.SIGINT):
+            loop.add_signal_handler(
+                sig, lambda s=sig: asyncio.create_task(handle_shutdown(s))
+            )
 
     yield
 
     logger.info("shutting down orchestrator")
-    if redis_client:
-        await redis_client.aclose()
+    await close_redis_clients(redis_client, redis_binary)
+    _shutdown_event.set()
     logger.info("shutdown complete")
-    sys.exit(0)
 
 
 async def handle_shutdown(sig: signal.Signals) -> None:
     logger.info("received signal", signal=sig.name)
-    _, pending = await asyncio.wait(
-        [asyncio.sleep(settings.shutdown.grace_period_seconds)],
-        timeout=settings.shutdown.grace_period_seconds,
-    )
-    if pending:
-        logger.warning("graceful shutdown period expired, forcing exit")
-    else:
-        logger.info("shutdown complete")
-    sys.exit(0)
+    await asyncio.sleep(settings.shutdown.grace_period_seconds)
+    _shutdown_event.set()
 
 
 app = FastAPI(title="J.A.R.V.I.S. Orchestrator", version="0.1.0", lifespan=lifespan)
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+app.include_router(chat_router)
+
+setup_cors(app, settings)
 
 
 @app.get("/health")

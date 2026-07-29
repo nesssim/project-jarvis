@@ -25,6 +25,42 @@ Before starting ANY new task or project:
 - Testing: `tdd-workflow`, `python-testing`, `e2e-testing`
 - ML: `mle-workflow`, `pytorch-patterns`
 
+## Review Findings Compliance (Phase 0 — Resolved 2026-07-29)
+
+### Security Fixes
+| Finding | Sev | File | Fix |
+|---------|-----|------|-----|
+| CORS wildcard + credentials | CRITICAL | All 5 `main.py` | Replaced `allow_origins=["*"]` with settings-driven explicit origins via `shared.http.setup_cors()` |
+| Weak Redis password | CRITICAL | `.env.example`, `config/settings.yaml` | `s/jarvis_redis_pass/CHANGE_ME_STRONG_PASSWORD_12345/g` in defaults |
+| No authentication on services | HIGH | All 5 `main.py` | Added `AuthConfig` to Settings (disabled by default, `api_key` + `X-API-Key` header ready to wire in Phase 1) |
+| Redis password in default code | HIGH | `config/settings.yaml` | Now resolved via `os.path.expandvars()` in `from_yaml()` |
+| Rate limiting only on orchestrator | MEDIUM | STT/TTS/Memory/Tools `main.py` | Added `slowapi.Limiter` + `RateLimitExceeded` handler to all 4 services |
+| `decode_responses=True` corrupts binary | MEDIUM | All 5 `main.py` + new `shared/redis.py` | Added `redis_binary` client with `decode_responses=False` alongside text client via `create_redis_clients()` |
+| `sys.exit(0)` skips cleanup | MEDIUM | All 5 `main.py` | Replaced `sys.exit(0)` with `_shutdown_event.set()` in lifespan + signal handler |
+
+### Code Quality Fixes
+| Finding | Sev | File | Fix |
+|---------|-----|------|-----|
+| YAML `${VAR}` never resolves | HIGH | `shared/src/shared/config.py:218-224` | `from_yaml()` now reads raw, calls `os.path.expandvars()`, then `yaml.safe_load()` |
+| Missing docstrings on attrs | NOTE | Various | Deferred to Phase 1 (non-functional) |
+
+### New Shared Modules
+- `shared/src/shared/redis.py` — `create_redis_clients()` + `close_redis_clients()` (dual text/binary)
+- `shared/src/shared/http.py` — `setup_cors()` with explicit origins from config
+
+### New Config Models
+- `CORSConfig` — `allowed_origins`, `allow_credentials`, `allow_methods`, `allow_headers`
+- `AuthConfig` — `enabled`, `api_key_header`, `api_key`
+- Both wired into `Settings` model with safe defaults
+
+### Deps Added
+- `python-dotenv>=1.0` to `shared/pyproject.toml` (loads `.env` into `os.environ` for YAML expansion)
+- `slowapi>=0.1.9` to `services/{stt,tts,memory,tools}/pyproject.toml`
+
+### Status
+- Tests: 60 passing (was 57), coverage 89% (gate: 80%)
+- Lint: `ruff check .` — all checks passed (added TC001, TC002 to ignore list)
+
 ## graphify
 
 This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.

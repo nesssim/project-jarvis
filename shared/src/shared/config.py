@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Literal
 
 import yaml
+from dotenv import load_dotenv
 from pydantic import BaseModel, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -158,6 +160,19 @@ class LoggingConfig(BaseModel):
         return v.upper()
 
 
+class CORSConfig(BaseModel):
+    allowed_origins: list[str] = ["http://localhost:3000", "http://localhost:8000"]
+    allow_credentials: bool = True
+    allow_methods: list[str] = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    allow_headers: list[str] = ["Content-Type", "Authorization", "X-API-Key"]
+
+
+class AuthConfig(BaseModel):
+    enabled: bool = False
+    api_key_header: str = "X-API-Key"
+    api_key: str = ""
+
+
 class ShutdownConfig(BaseModel):
     grace_period_seconds: int = 10
     force_exit_after_seconds: int = 15
@@ -190,6 +205,8 @@ class Settings(BaseSettings):
     tools: ToolsConfig = ToolsConfig()
     rate_limiting: RateLimitConfig = RateLimitConfig()
     logging: LoggingConfig = LoggingConfig()
+    cors: CORSConfig = CORSConfig()
+    auth: AuthConfig = AuthConfig()
     shutdown: ShutdownConfig = ShutdownConfig()
 
     @classmethod
@@ -197,7 +214,9 @@ class Settings(BaseSettings):
         if not path.exists():
             raise FileNotFoundError(f"Settings file not found: {path}")
         with path.open() as f:
-            data = yaml.safe_load(f)
+            raw = f.read()
+        expanded = os.path.expandvars(raw)
+        data = yaml.safe_load(expanded)
         return cls(**data)
 
     def validate_provider_keys(self) -> None:
@@ -214,6 +233,9 @@ class Settings(BaseSettings):
 
 
 def load_settings(yaml_path: str | None = None) -> Settings:
+    env_file = Path(".env")
+    if env_file.exists():
+        load_dotenv(env_file, override=False)
     if yaml_path:
         settings = Settings.from_yaml(Path(yaml_path))
     else:

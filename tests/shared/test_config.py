@@ -91,3 +91,23 @@ def test_shutdown_config() -> None:
 def test_load_settings_no_yaml() -> None:
     settings = load_settings()
     assert settings is not None
+
+
+def test_yaml_env_var_expansion(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("TEST_REDIS_PASSWORD", "strong_pass_123")
+    yaml_path = tmp_path / "settings.yaml"
+    yaml_path.write_text('redis:\n  url: "redis://:${TEST_REDIS_PASSWORD}@redis:6379/0"\n')
+    settings = Settings.from_yaml(yaml_path)
+    assert settings.redis.url == "redis://:strong_pass_123@redis:6379/0"
+
+
+def test_cors_config_defaults() -> None:
+    settings = Settings()
+    assert "http://localhost:3000" in settings.cors.allowed_origins
+    assert settings.cors.allow_credentials is True
+
+
+def test_auth_config_defaults() -> None:
+    settings = Settings()
+    assert settings.auth.enabled is False
+    assert settings.auth.api_key_header == "X-API-Key"

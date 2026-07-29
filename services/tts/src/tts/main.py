@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import signal
-import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -10,7 +9,12 @@ import redis.asyncio as redis
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from shared.config import load_settings
+from shared.http import setup_cors
 from shared.logging import get_logger, setup_logging
+from shared.redis import close_redis_clients, create_redis_clients
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 settings = load_settings()
 setup_logging(
@@ -19,6 +23,13 @@ setup_logging(
 logger = get_logger("tts")
 
 redis_client: redis.Redis | None = None
+redis_binary: redis.Redis | None = None
+_shutdown_event = asyncio.Event()
+
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=[settings.rate_limiting.default],
+)
 
 
 async def check_redis() -> bool:
@@ -33,17 +44,9 @@ async def check_redis() -> bool:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    global redis_client
+    global redis_client, redis_binary
     logger.info("starting tts service")
-    redis_client = redis.from_url(
-        settings.redis.url, decode_responses=True, socket_connect_timeout=5
-    )
-    try:
-        await redis_client.ping()
-        logger.info("redis connected")
-    except Exception as e:
-        logger.warning("redis not available at startup", error=str(e))
-        redis_client = None
+    redis_client, redis_binary = await create_redis_clients(settings)
 
     loop = asyncio.get_event_loop()
     for sig in (signal.SIGTERM, signal.SIGINT):
@@ -54,19 +57,22 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     yield
 
     logger.info("shutting down tts service")
-    if redis_client:
-        await redis_client.aclose()
-    sys.exit(0)
+    await close_redis_clients(redis_client, redis_binary)
+    _shutdown_event.set()
 
 
 async def handle_shutdown(sig: signal.Signals) -> None:
     logger.info("received signal", signal=sig.name)
     await asyncio.sleep(settings.shutdown.grace_period_seconds)
-    logger.info("shutdown complete")
-    sys.exit(0)
+    _shutdown_event.set()
 
 
 app = FastAPI(title="J.A.R.V.I.S. TTS", version="0.1.0", lifespan=lifespan)
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+setup_cors(app, settings)
 
 
 @app.get("/health")
