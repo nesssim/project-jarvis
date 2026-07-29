@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import logging
 import sys
+from collections.abc import MutableMapping
 from typing import Any
 
 import structlog
+import structlog.types
 
 _REDACTED = "***"
 
@@ -24,7 +26,7 @@ def setup_logging(
     json_format: bool = True,
     redact_fields: list[str] | None = None,
 ) -> None:
-    processors = [
+    processors: list[structlog.types.Processor] = [
         structlog.stdlib.filter_by_level,
         structlog.stdlib.add_logger_name,
         structlog.stdlib.add_log_level,
@@ -35,7 +37,11 @@ def setup_logging(
 
     if redact_fields:
 
-        def redact_processor(logger, method_name, event_dict):
+        def redact_processor(
+            logger: structlog.types.WrappedLogger,
+            method_name: str,
+            event_dict: MutableMapping[str, Any],
+        ) -> MutableMapping[str, Any]:
             for field in redact_fields:
                 if field in event_dict:
                     event_dict[field] = _REDACTED

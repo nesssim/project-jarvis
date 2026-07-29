@@ -32,7 +32,7 @@ class BaseLLMClient(ABC):
         self.config = config
 
     @abstractmethod
-    async def generate(
+    def generate(
         self,
         messages: list[dict[str, str]],
         stream: bool = True,

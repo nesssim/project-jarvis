@@ -49,9 +49,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     loop = asyncio.get_event_loop()
     for sig in (signal.SIGTERM, signal.SIGINT):
-        loop.add_signal_handler(
-            sig, lambda s=sig: asyncio.create_task(handle_shutdown(s))
-        )
+
+        def _sig_handler(s: signal.Signals = sig) -> None:
+            asyncio.create_task(handle_shutdown(s))  # noqa: RUF006
+
+        loop.add_signal_handler(sig, _sig_handler)
 
     yield
 
@@ -69,7 +71,7 @@ async def handle_shutdown(sig: signal.Signals) -> None:
 app = FastAPI(title="J.A.R.V.I.S. Memory", version="0.1.0", lifespan=lifespan)
 
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
 
 setup_cors(app, settings)
 
