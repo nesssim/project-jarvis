@@ -13,7 +13,9 @@ class MockLLM:
         self.tokens = tokens or ["mock ", "response"]
         self.captured_kwargs: dict | None = None
 
-    async def generate(self, messages, _stream=True, _max_tokens=None, _temperature=None):
+    async def generate(
+        self, messages, _stream=True, _max_tokens=None, _temperature=None
+    ):
         self.captured_kwargs = {"messages": messages}
         for t in self.tokens:
             yield t

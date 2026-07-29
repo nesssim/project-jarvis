@@ -23,8 +23,7 @@ def client(tmp_path):
             return_value=llm,
         ),
         patch(
-            "services.orchestrator.src.orchestrator.main.PromptManager",
-            return_value=pm,
+            "services.orchestrator.src.orchestrator.main.PromptManager", return_value=pm
         ),
     ):
         mock_settings.rate_limiting.default = "100/minute"
@@ -45,7 +44,9 @@ class MockLLM:
         self._tokens = tokens or ["mock ", "response"]
         self.captured_kwargs = None
 
-    async def generate(self, messages, _stream=True, _max_tokens=None, _temperature=None):
+    async def generate(
+        self, messages, _stream=True, _max_tokens=None, _temperature=None
+    ):
         self.captured_kwargs = {"messages": messages}
         for t in self._tokens:
             yield t
@@ -69,9 +70,7 @@ def test_chat_returns_sse_stream(client, mock_prompt):
     _inject_mocks(client, llm, mock_prompt)
 
     response = client.post(
-        "/chat",
-        json={"message": "say hello"},
-        headers={"Accept": "text/event-stream"},
+        "/chat", json={"message": "say hello"}, headers={"Accept": "text/event-stream"}
     )
 
     assert response.status_code == 200
@@ -100,9 +99,7 @@ def test_chat_includes_prompt_in_generate_call(client, mock_prompt):
     client.post("/chat", json={"message": "hello"})
 
     mock_prompt.render.assert_called_once_with(
-        max_tokens="512",
-        retrieved_memory="",
-        short_term_buffer="",
+        max_tokens="512", retrieved_memory="", short_term_buffer=""
     )
     assert llm.captured_kwargs is not None
     msgs = llm.captured_kwargs["messages"]

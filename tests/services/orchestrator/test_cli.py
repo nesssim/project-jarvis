@@ -23,11 +23,16 @@ def test_cli_sends_message_and_streams(tmp_path):
     mock_response.iter_lines.return_value = sse_data.split("\n")
 
     mock_client = MagicMock()
-    mock_client.__enter__.return_value.stream.return_value.__enter__.return_value = mock_response
+    mock_client.__enter__.return_value.stream.return_value.__enter__.return_value = (
+        mock_response
+    )
 
     with (
         patch.object(sys, "argv", ["jarvis-chat", "hello"]),
-        patch("services.orchestrator.src.orchestrator.cli.httpx.Client", return_value=mock_client),
+        patch(
+            "services.orchestrator.src.orchestrator.cli.httpx.Client",
+            return_value=mock_client,
+        ),
     ):
         main()
 

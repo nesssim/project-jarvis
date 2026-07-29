@@ -27,8 +27,7 @@ redis_binary: redis.Redis | None = None
 _shutdown_event = asyncio.Event()
 
 limiter = Limiter(
-    key_func=get_remote_address,
-    default_limits=[settings.rate_limiting.default],
+    key_func=get_remote_address, default_limits=[settings.rate_limiting.default]
 )
 
 

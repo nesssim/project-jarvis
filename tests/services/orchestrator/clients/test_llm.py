@@ -27,17 +27,13 @@ def test_ollama_client_config_mapped() -> None:
 
 
 def test_create_llm_client_groq_not_implemented() -> None:
-    settings = Settings(
-        llm={"provider": "groq", "groq": {"api_key": "test-key"}}
-    )
+    settings = Settings(llm={"provider": "groq", "groq": {"api_key": "test-key"}})
     with pytest.raises(NotImplementedError, match="Groq"):
         create_llm_client(settings.llm)
 
 
 def test_create_llm_client_gemini_not_implemented() -> None:
-    settings = Settings(
-        llm={"provider": "gemini", "gemini": {"api_key": "test-key"}}
-    )
+    settings = Settings(llm={"provider": "gemini", "gemini": {"api_key": "test-key"}})
     with pytest.raises(NotImplementedError, match="Gemini"):
         create_llm_client(settings.llm)
 

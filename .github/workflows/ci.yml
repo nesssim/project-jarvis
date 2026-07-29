@@ -36,6 +36,11 @@ jobs:
         run: |
           pip install pytest pytest-asyncio pytest-cov pytest-mock fakeredis[lua] httpx
           pip install -e shared/
+          pip install -e services/orchestrator/
+          pip install -e services/stt/
+          pip install -e services/tts/
+          pip install -e services/memory/
+          pip install -e services/tools/
       - name: Run tests
         run: pytest tests/ --cov=shared --cov=services --cov-report=term-missing --cov-fail-under=80 -v
         env:

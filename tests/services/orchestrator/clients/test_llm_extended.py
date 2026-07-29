@@ -43,7 +43,9 @@ def test_build_payload_defaults(client: OllamaClient) -> None:
 
 def test_build_payload_overrides(client: OllamaClient) -> None:
     messages = [{"role": "user", "content": "hi"}]
-    payload = client._build_payload(messages, stream=False, max_tokens=999, temperature=0.1)  # noqa: SLF001
+    payload = client._build_payload(  # noqa: SLF001
+        messages, stream=False, max_tokens=999, temperature=0.1
+    )
     assert payload["options"]["num_predict"] == 999
     assert payload["options"]["temperature"] == 0.1
 
@@ -90,8 +92,12 @@ async def test_generate_connect_error_retries_then_raises(client: OllamaClient) 
     with patch.object(client, "_try_generate") as mock_try:
         mock_try.side_effect = httpx.ConnectError("connection refused")
 
-        with pytest.raises(OllamaConnectionError, match="Failed to connect to Ollama after 3 attempts"):
-            async for _ in client.generate(messages=[{"role": "user", "content": "hi"}]):
+        with pytest.raises(
+            OllamaConnectionError, match="Failed to connect to Ollama after 3 attempts"
+        ):
+            async for _ in client.generate(
+                messages=[{"role": "user", "content": "hi"}]
+            ):
                 pass  # pragma: no cover
 
 
@@ -101,7 +107,9 @@ async def test_generate_model_not_found(client: OllamaClient) -> None:
         mock_try.side_effect = ModelNotFoundError("model 'test-model' not found")
 
         with pytest.raises(ModelNotFoundError):
-            async for _ in client.generate(messages=[{"role": "user", "content": "hi"}]):
+            async for _ in client.generate(
+                messages=[{"role": "user", "content": "hi"}]
+            ):
                 pass  # pragma: no cover
 
 
@@ -111,7 +119,9 @@ async def test_generate_service_unavailable(client: OllamaClient) -> None:
         mock_try.side_effect = ServiceUnavailableError("Ollama is not ready")
 
         with pytest.raises(ServiceUnavailableError):
-            async for _ in client.generate(messages=[{"role": "user", "content": "hi"}]):
+            async for _ in client.generate(
+                messages=[{"role": "user", "content": "hi"}]
+            ):
                 pass  # pragma: no cover
 
 

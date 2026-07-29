@@ -16,9 +16,7 @@ async def create_redis_clients(
 
     try:
         redis_client = redis.from_url(
-            settings.redis.url,
-            decode_responses=True,
-            socket_connect_timeout=5,
+            settings.redis.url, decode_responses=True, socket_connect_timeout=5
         )
         await redis_client.ping()
         logger.info("redis connected")
@@ -28,9 +26,7 @@ async def create_redis_clients(
 
     try:
         redis_binary = redis.from_url(
-            settings.redis.url,
-            decode_responses=False,
-            socket_connect_timeout=5,
+            settings.redis.url, decode_responses=False, socket_connect_timeout=5
         )
         await redis_binary.ping()
         logger.info("redis binary client connected")
@@ -42,8 +38,7 @@ async def create_redis_clients(
 
 
 async def close_redis_clients(
-    redis_client: redis.Redis | None,
-    redis_binary: redis.Redis | None,
+    redis_client: redis.Redis | None, redis_binary: redis.Redis | None
 ) -> None:
     if redis_client:
         await redis_client.aclose()

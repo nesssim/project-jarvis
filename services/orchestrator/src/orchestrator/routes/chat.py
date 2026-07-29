@@ -20,9 +20,7 @@ async def chat(request: Request, body: ChatRequest):
     prompt_manager: PromptManager = request.app.state.prompt_manager
 
     system_prompt = prompt_manager.render(
-        max_tokens="512",
-        retrieved_memory="",
-        short_term_buffer="",
+        max_tokens="512", retrieved_memory="", short_term_buffer=""
     )
     messages = [
         {"role": "system", "content": system_prompt},
@@ -37,8 +35,5 @@ async def chat(request: Request, body: ChatRequest):
     return StreamingResponse(
         event_stream(),
         media_type="text/event-stream",
-        headers={
-            "X-Content-Type-Options": "nosniff",
-            "Cache-Control": "no-cache",
-        },
+        headers={"X-Content-Type-Options": "nosniff", "Cache-Control": "no-cache"},
     )

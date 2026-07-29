@@ -9,28 +9,22 @@ import httpx
 from shared.config import LLMConfig
 
 
-class LLMError(Exception):
-    ...
+class LLMError(Exception): ...
 
 
-class ModelNotFoundError(LLMError):
-    ...
+class ModelNotFoundError(LLMError): ...
 
 
-class ServiceUnavailableError(LLMError):
-    ...
+class ServiceUnavailableError(LLMError): ...
 
 
-class OllamaConnectionError(LLMError):
-    ...
+class OllamaConnectionError(LLMError): ...
 
 
-class OllamaAPIError(LLMError):
-    ...
+class OllamaAPIError(LLMError): ...
 
 
-class OllamaError(LLMError):
-    ...
+class OllamaError(LLMError): ...
 
 
 class BaseLLMClient(ABC):
@@ -44,8 +38,7 @@ class BaseLLMClient(ABC):
         stream: bool = True,
         max_tokens: int | None = None,
         temperature: float | None = None,
-    ) -> AsyncIterator[str]:
-        ...
+    ) -> AsyncIterator[str]: ...
 
 
 class OllamaClient(BaseLLMClient):
@@ -86,14 +79,13 @@ class OllamaClient(BaseLLMClient):
             if content:
                 yield content
 
-    async def _try_generate(
-        self, payload: dict
-    ) -> AsyncIterator[str]:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(60.0)) as client, client.stream(
-            "POST",
-            f"{self.base_url}/api/chat",
-            json=payload,
-        ) as response:
+    async def _try_generate(self, payload: dict) -> AsyncIterator[str]:
+        async with (
+            httpx.AsyncClient(timeout=httpx.Timeout(60.0)) as client,
+            client.stream(
+                "POST", f"{self.base_url}/api/chat", json=payload
+            ) as response,
+        ):
             if response.status_code == 404:
                 raise ModelNotFoundError(
                     f"Model '{self.ollama_config.model}' not found on Ollama"

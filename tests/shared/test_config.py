@@ -96,7 +96,9 @@ def test_load_settings_no_yaml() -> None:
 def test_yaml_env_var_expansion(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("TEST_REDIS_PASSWORD", "strong_pass_123")
     yaml_path = tmp_path / "settings.yaml"
-    yaml_path.write_text('redis:\n  url: "redis://:${TEST_REDIS_PASSWORD}@redis:6379/0"\n')
+    yaml_path.write_text(
+        'redis:\n  url: "redis://:${TEST_REDIS_PASSWORD}@redis:6379/0"\n'
+    )
     settings = Settings.from_yaml(yaml_path)
     assert settings.redis.url == "redis://:strong_pass_123@redis:6379/0"
 

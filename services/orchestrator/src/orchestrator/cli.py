@@ -25,7 +25,10 @@ def main() -> None:
 
     url = f"{args.url.rstrip('/')}/chat"
 
-    with httpx.Client(timeout=60) as client, client.stream("POST", url, json={"message": message}) as response:
+    with (
+        httpx.Client(timeout=60) as client,
+        client.stream("POST", url, json={"message": message}) as response,
+    ):
         for raw_line in response.iter_lines():
             trimmed = raw_line.strip()
             if not trimmed.startswith("data: "):

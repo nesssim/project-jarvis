@@ -27,7 +27,12 @@ class PromptManager:
         template = path.read_text(encoding="utf-8")
         self._cache[template_name] = template
         self._version_hash = None
-        logger.info("prompt template loaded", name=template_name, version=self.VERSION, path=str(path))
+        logger.info(
+            "prompt template loaded",
+            name=template_name,
+            version=self.VERSION,
+            path=str(path),
+        )
         return template
 
     def render(self, template_name: str = "v1_system", **kwargs: str) -> str:
