@@ -1,0 +1,115 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "JARVIS Settings Schema",
+  "type": "object",
+  "required": ["service", "redis", "llm", "stt", "tts", "audio", "logging", "shutdown"],
+  "properties": {
+    "service": {
+      "type": "object",
+      "required": ["orchestrator", "stt", "tts", "memory", "tools"],
+      "properties": {
+        "orchestrator": { "$ref": "#/$defs/serviceEndpoint" },
+        "stt": { "$ref": "#/$defs/serviceEndpoint" },
+        "tts": { "$ref": "#/$defs/serviceEndpoint" },
+        "memory": { "$ref": "#/$defs/serviceEndpoint" },
+        "tools": { "$ref": "#/$defs/serviceEndpoint" }
+      }
+    },
+    "redis": {
+      "type": "object",
+      "required": ["url"],
+      "properties": {
+        "url": { "type": "string", "pattern": "^redis://" },
+        "streams": {
+          "type": "object",
+          "properties": {
+            "consumer_group": { "type": "string" },
+            "max_length": { "type": "integer", "minimum": 100, "maximum": 100000 }
+          }
+        }
+      }
+    },
+    "llm": {
+      "type": "object",
+      "required": ["provider", "generation"],
+      "properties": {
+        "provider": { "type": "string", "enum": ["ollama", "groq", "gemini"] },
+        "ollama": { "type": "object" },
+        "groq": { "type": "object" },
+        "gemini": { "type": "object" },
+        "generation": {
+          "type": "object",
+          "properties": {
+            "max_tokens": { "type": "integer", "minimum": 1 },
+            "temperature": { "type": "number", "minimum": 0, "maximum": 2 },
+            "top_p": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        }
+      }
+    },
+    "stt": {
+      "type": "object",
+      "required": ["provider"],
+      "properties": {
+        "provider": { "type": "string", "enum": ["whisper"] },
+        "whisper": { "type": "object" },
+        "vad": {
+          "type": "object",
+          "properties": {
+            "threshold": { "type": "number", "minimum": 0, "maximum": 1 },
+            "silence_duration_ms": { "type": "integer", "minimum": 100, "maximum": 5000 }
+          }
+        }
+      }
+    },
+    "tts": {
+      "type": "object",
+      "required": ["provider"],
+      "properties": {
+        "provider": { "type": "string", "enum": ["piper", "kokoro"] },
+        "piper": { "type": "object" },
+        "kokoro": { "type": "object" }
+      }
+    },
+    "audio": {
+      "type": "object",
+      "properties": {
+        "sample_rate": { "type": "integer", "enum": [8000, 16000, 22050, 44100] },
+        "channels": { "type": "integer", "minimum": 1, "maximum": 2 },
+        "sample_width": { "type": "integer", "enum": [1, 2, 4] },
+        "chunk_size_ms": { "type": "integer", "minimum": 10, "maximum": 1000 }
+      }
+    },
+    "rate_limiting": {
+      "type": "object",
+      "properties": {
+        "default": { "type": "string" },
+        "per_endpoint": { "type": "object" }
+      }
+    },
+    "logging": {
+      "type": "object",
+      "required": ["level"],
+      "properties": {
+        "level": { "type": "string", "enum": ["DEBUG", "INFO", "WARNING", "ERROR"] },
+        "format": { "type": "string", "enum": ["json", "text"] }
+      }
+    },
+    "shutdown": {
+      "type": "object",
+      "properties": {
+        "grace_period_seconds": { "type": "integer", "minimum": 1, "maximum": 60 },
+        "force_exit_after_seconds": { "type": "integer", "minimum": 1, "maximum": 120 }
+      }
+    }
+  },
+  "$defs": {
+    "serviceEndpoint": {
+      "type": "object",
+      "properties": {
+        "host": { "type": "string" },
+        "port": { "type": "integer", "minimum": 1024, "maximum": 65535 }
+      }
+    }
+  }
+}

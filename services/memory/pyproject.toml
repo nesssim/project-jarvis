@@ -1,0 +1,20 @@
+[project]
+name = "jarvis-memory"
+version = "0.1.0"
+description = "J.A.R.V.I.S. Memory Service"
+requires-python = ">=3.10"
+dependencies = [
+    "jarvis-shared",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "redis[hiredis]>=5.0",
+    "pydantic>=2.0",
+    "structlog>=24.0",
+]
+
+[build-system]
+requires = ["setuptools>=64.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
