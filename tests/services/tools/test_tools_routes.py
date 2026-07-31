@@ -13,6 +13,10 @@ async def _mock_search(query: str, max_results: int = 5) -> dict:
     }
 
 
+async def _mock_any(**kwargs: object) -> dict:
+    return {"ok": True, **kwargs}
+
+
 @pytest.fixture
 def test_client():
     with (
@@ -20,6 +24,13 @@ def test_client():
         patch("tools.main.settings") as mock_settings,
     ):
         mock_settings.rate_limiting.default = "100/minute"
+        mock_settings.auth.enabled = False
+        mock_settings.tools.safety_tiers = {
+            "safe": ["web_search"],
+            "confirm": [],
+            "restricted": [],
+        }
+        mock_settings.tools.safety_permitted_tier = "safe"
         from tools.main import app
 
         app.state.tool_registry = ToolRegistry()
@@ -50,6 +61,28 @@ class TestToolsRoutes:
             "/api/tools/execute", json={"tool": "nonexistent", "params": {}}
         )
         assert resp.status_code == 404
+
+    def test_execute_restricted_tool_denied(self, test_client):
+        test_client.app.state.tool_registry.register(
+            "execute_command", "Run a command", _mock_search
+        )
+        resp = test_client.post(
+            "/api/tools/execute", json={"tool": "execute_command", "params": {}}
+        )
+        assert resp.status_code == 403
+        assert "safety tier" in resp.json()["error"]
+
+    def test_execute_confirm_tool_allowed_when_permitted(self, test_client):
+        test_client.app.state.settings.tools.safety_tiers["confirm"] = ["write_file"]
+        test_client.app.state.settings.tools.safety_permitted_tier = "confirm"
+        test_client.app.state.tool_registry.register(
+            "write_file", "Write a file", _mock_any
+        )
+        resp = test_client.post(
+            "/api/tools/execute",
+            json={"tool": "write_file", "params": {"path": "/data/sandbox/test.txt"}},
+        )
+        assert resp.status_code == 200
 
     def test_execute_validation(self, test_client):
         resp = test_client.post("/api/tools/execute", json={"tool": "", "params": {}})

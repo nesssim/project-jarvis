@@ -105,6 +105,7 @@ def mock_services():
     ):
         mock_settings.rate_limiting.default = "100/minute"
         mock_settings.auth.enabled = False
+        mock_settings.cors.allowed_origins = ["http://localhost"]
         mock_settings.audio.sample_rate = 16000
         mock_settings.audio.channels = 1
         mock_settings.audio.sample_width = 2

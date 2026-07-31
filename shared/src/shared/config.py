@@ -1,13 +1,21 @@
 from __future__ import annotations
 
 import os
+import threading
 from pathlib import Path
 from typing import Literal
 
 import yaml
 from dotenv import load_dotenv
-from pydantic import BaseModel, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import BaseModel, field_validator, model_validator
+from pydantic_settings import (
+    BaseSettings,
+    PydanticBaseSettingsSource,
+    SettingsConfigDict,
+)
+
+_yaml_lock = threading.Lock()
+_yaml_data: dict = {}
 
 
 class ServiceEndpoint(BaseModel):
@@ -144,6 +152,7 @@ class ToolsConfig(BaseModel):
         "confirm": ["send_email", "write_file", "delete_file"],
         "restricted": ["execute_command", "modify_system", "control_hardware"],
     }
+    safety_permitted_tier: str = "safe"
 
 
 class RateLimitConfig(BaseModel):
@@ -178,6 +187,20 @@ class AuthConfig(BaseModel):
     api_key_header: str = "X-API-Key"
     api_key: str = ""
 
+    @model_validator(mode="after")
+    def validate_api_key_when_enabled(self) -> AuthConfig:
+        if self.enabled and (
+            not self.api_key.strip()
+            or "${" in self.api_key
+            or "CHANGE_ME" in self.api_key
+        ):
+            raise ValueError(
+                "Auth is enabled but AUTH_API_KEY is empty, unset, or still the "
+                "CHANGE_ME placeholder. Set a real AUTH_API_KEY in the environment "
+                "or set auth.enabled to false."
+            )
+        return self
+
 
 class InternalServiceUrls(BaseModel):
     stt: str = "http://stt:8001"
@@ -206,6 +229,24 @@ class ServiceConfig(BaseModel):
     tools: ServiceEndpoint = ServiceEndpoint(port=8004)
 
 
+class YamlConfigSettingsSource(PydanticBaseSettingsSource):
+    def __init__(self, settings_cls: type[BaseSettings], data: dict) -> None:
+        super().__init__(settings_cls)
+        self._data = data
+
+    def get_field_value(self, field, field_name: str):
+        field_value = self._data.get(field_name)
+        return field_value, field_name, False
+
+    def __call__(self) -> dict:
+        data: dict = {}
+        for field_name in self.settings_cls.model_fields:
+            field_value = self._data.get(field_name)
+            if field_value is not None:
+                data[field_name] = field_value
+        return data
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_nested_delimiter="__",
@@ -213,6 +254,8 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+    _yaml_data: dict = {}
 
     service: ServiceConfig = ServiceConfig()
     redis: RedisConfig = RedisConfig()
@@ -232,14 +275,38 @@ class Settings(BaseSettings):
     internal_urls: InternalServiceUrls = InternalServiceUrls()
 
     @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        yaml_source = YamlConfigSettingsSource(settings_cls, _yaml_data)
+        return (
+            init_settings,
+            env_settings,
+            dotenv_settings,
+            yaml_source,
+            file_secret_settings,
+        )
+
+    @classmethod
     def from_yaml(cls, path: Path) -> Settings:
+        global _yaml_data
         if not path.exists():
             raise FileNotFoundError(f"Settings file not found: {path}")
         with path.open() as f:
             raw = f.read()
         expanded = os.path.expandvars(raw)
         data = yaml.safe_load(expanded)
-        return cls(**data)
+        with _yaml_lock:
+            _yaml_data = data or {}
+            try:
+                return cls()
+            finally:
+                _yaml_data = {}
 
     def validate_provider_keys(self) -> None:
         if self.llm.provider == "groq" and not self.llm.groq.api_key:

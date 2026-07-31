@@ -1,7 +1,19 @@
 from __future__ import annotations
 
 import pytest
-from tools.registry import ToolExecutionError, ToolNotFoundError, ToolRegistry
+from tools.registry import (
+    TIER_ORDER,
+    ToolExecutionError,
+    ToolNotFoundError,
+    ToolRegistry,
+    tool_tier_allowed,
+)
+
+SAFETY_TIERS = {
+    "safe": ["web_search", "get_datetime", "read_file"],
+    "confirm": ["write_file", "delete_file"],
+    "restricted": ["execute_command"],
+}
 
 
 async def _dummy_handler(query: str, max_results: int = 5) -> dict:
@@ -63,3 +75,32 @@ class TestToolRegistry:
 
     async def test_get_tool_not_found(self, registry):
         assert registry.get_tool("nonexistent") is None
+
+
+class TestToolTierAllowance:
+    def test_tier_order_has_expected_sequence(self):
+        assert TIER_ORDER == ("safe", "confirm", "restricted")
+
+    def test_safe_tool_allowed_at_safe_tier(self):
+        assert tool_tier_allowed("web_search", SAFETY_TIERS, "safe") is True
+
+    def test_confirm_tool_denied_at_safe_tier(self):
+        assert tool_tier_allowed("write_file", SAFETY_TIERS, "safe") is False
+
+    def test_restricted_tool_denied_at_safe_tier(self):
+        assert tool_tier_allowed("execute_command", SAFETY_TIERS, "safe") is False
+
+    def test_confirm_tool_allowed_at_confirm_tier(self):
+        assert tool_tier_allowed("write_file", SAFETY_TIERS, "confirm") is True
+
+    def test_restricted_tool_allowed_at_restricted_tier(self):
+        assert tool_tier_allowed("execute_command", SAFETY_TIERS, "restricted") is True
+
+    def test_restricted_tool_denied_at_confirm_tier(self):
+        assert tool_tier_allowed("execute_command", SAFETY_TIERS, "confirm") is False
+
+    def test_unknown_tool_denied(self):
+        assert tool_tier_allowed("unknown_tool", SAFETY_TIERS, "restricted") is False
+
+    def test_unknown_permitted_tier_denied(self):
+        assert tool_tier_allowed("web_search", SAFETY_TIERS, "god_mode") is False

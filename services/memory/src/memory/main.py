@@ -10,7 +10,12 @@ import redis.asyncio as redis
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from shared.config import load_settings
-from shared.http import add_request_size_limit, setup_cors, setup_rate_limiter
+from shared.http import (
+    add_request_size_limit,
+    setup_auth,
+    setup_cors,
+    setup_rate_limiter,
+)
 from shared.logging import get_logger, setup_logging
 from shared.redis import close_redis_clients, create_redis_clients
 from slowapi import Limiter
@@ -79,10 +84,11 @@ async def handle_shutdown(sig: signal.Signals) -> None:
 
 app = FastAPI(title="J.A.R.V.I.S. Memory", version="0.1.0", lifespan=lifespan)
 
-setup_rate_limiter(app, limiter)
 
 setup_cors(app, settings)
 add_request_size_limit(app)
+setup_auth(app, settings)
+setup_rate_limiter(app, limiter)
 
 
 @app.get("/health")

@@ -13,10 +13,23 @@ class TTSClientError(Exception):
 
 
 class TTSClient:
-    def __init__(self, base_url: str, timeout: float = 60.0) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        timeout: float = 60.0,
+        api_key: str | None = None,
+        api_key_header: str = "X-API-Key",
+    ) -> None:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
+        self.api_key = api_key
+        self.api_key_header = api_key_header
         self._http: httpx.AsyncClient | None = None
+
+    def _auth_headers(self) -> dict[str, str]:
+        if self.api_key:
+            return {self.api_key_header: self.api_key}
+        return {}
 
     async def _get_client(self) -> httpx.AsyncClient:
         if self._http is None:
@@ -26,7 +39,9 @@ class TTSClient:
     async def synthesize(self, text: str) -> bytes:
         """Synthesize text to audio. Returns complete WAV bytes."""
         client = await self._get_client()
-        resp = await client.post("/synthesize", json={"text": text})
+        resp = await client.post(
+            "/synthesize", json={"text": text}, headers=self._auth_headers()
+        )
         if resp.status_code >= 400:
             raise TTSClientError(f"synthesize failed: {resp.status_code} {resp.text}")
         return resp.content

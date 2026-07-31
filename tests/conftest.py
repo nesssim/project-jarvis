@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from collections.abc import AsyncGenerator
 
 import fakeredis.aioredis
@@ -8,6 +9,9 @@ import pytest_asyncio
 from httpx import AsyncClient
 from shared.config import Settings
 from shared.logging import setup_logging
+
+os.environ.setdefault("AUTH__ENABLED", "false")
+os.environ.setdefault("AUTH__API_KEY", "test-api-key")
 
 
 def make_audio_chunk(duration_ms: int = 100, sample_rate: int = 16000) -> bytes:

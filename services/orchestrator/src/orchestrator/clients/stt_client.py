@@ -14,10 +14,23 @@ class STTClientError(Exception):
 
 
 class STTClient:
-    def __init__(self, base_url: str, timeout: float = 30.0) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        timeout: float = 30.0,
+        api_key: str | None = None,
+        api_key_header: str = "X-API-Key",
+    ) -> None:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
+        self.api_key = api_key
+        self.api_key_header = api_key_header
         self._http: httpx.AsyncClient | None = None
+
+    def _auth_headers(self) -> dict[str, str]:
+        if self.api_key:
+            return {self.api_key_header: self.api_key}
+        return {}
 
     async def _get_client(self) -> httpx.AsyncClient:
         if self._http is None:
@@ -27,7 +40,9 @@ class STTClient:
     async def transcribe(self, audio_bytes: bytes) -> dict:
         client = await self._get_client()
         resp = await client.post(
-            "/transcribe", content=audio_bytes, headers={"Content-Type": "audio/wav"}
+            "/transcribe",
+            content=audio_bytes,
+            headers={**self._auth_headers(), "Content-Type": "audio/wav"},
         )
         if resp.status_code >= 400:
             raise STTClientError(f"transcribe failed: {resp.status_code} {resp.text}")
@@ -46,7 +61,7 @@ class STTClient:
         resp = await client.post(
             "/vad",
             content=audio_chunk,
-            headers={"Content-Type": "audio/wav"},
+            headers={**self._auth_headers(), "Content-Type": "audio/wav"},
             params=params,
         )
         if resp.status_code >= 400:
@@ -57,7 +72,7 @@ class STTClient:
         """Reset the VAD processor state on the STT service."""
         client = await self._get_client()
         params = {"session_id": session_id} if session_id else {}
-        await client.post("/vad/reset", params=params)
+        await client.post("/vad/reset", params=params, headers=self._auth_headers())
 
     async def transcribe_stream(
         self, audio_iterator: AsyncIterator[bytes], sample_rate: int = 16000
@@ -77,7 +92,10 @@ class STTClient:
             "POST",
             url,
             content=audio_iterator,
-            headers={"Content-Type": "application/octet-stream"},
+            headers={
+                **self._auth_headers(),
+                "Content-Type": "application/octet-stream",
+            },
         ) as response:
             if response.status_code >= 400:
                 error_text = await response.aread()

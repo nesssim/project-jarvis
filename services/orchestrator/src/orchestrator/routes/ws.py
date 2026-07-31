@@ -5,6 +5,7 @@ import json
 import time
 import uuid
 from contextlib import suppress
+from hmac import compare_digest
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from shared.logging import get_logger
@@ -74,8 +75,17 @@ async def audio_stream(websocket: WebSocket):
 
         settings = websocket.app.state.settings
 
+        origin = websocket.headers.get("origin")
+        if origin is not None and origin not in settings.cors.allowed_origins:
+            logger.warning("ws origin rejected", origin=origin)
+            await websocket.close(code=1008)
+            return
+
         api_key = websocket.headers.get(settings.auth.api_key_header, "")
-        if settings.auth.enabled and api_key != settings.auth.api_key:
+        if settings.auth.enabled and (
+            not settings.auth.api_key
+            or not compare_digest(api_key, settings.auth.api_key)
+        ):
             logger.warning("ws auth rejected", header=settings.auth.api_key_header)
             await websocket.close(code=4001)
             return

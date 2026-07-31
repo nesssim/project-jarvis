@@ -113,3 +113,58 @@ def test_auth_config_defaults() -> None:
     settings = Settings()
     assert settings.auth.enabled is False
     assert settings.auth.api_key_header == "X-API-Key"
+
+
+def test_auth_fail_closed_when_enabled_without_key() -> None:
+    with pytest.raises(ValueError, match="AUTH_API_KEY"):
+        Settings(auth={"enabled": True, "api_key": ""})
+
+
+def test_auth_rejects_unresolved_placeholder() -> None:
+    with pytest.raises(ValueError, match="AUTH_API_KEY"):
+        Settings(auth={"enabled": True, "api_key": "${AUTH_API_KEY}"})
+
+
+def test_auth_rejects_change_me_placeholder() -> None:
+    with pytest.raises(ValueError, match="CHANGE_ME"):
+        Settings(auth={"enabled": True, "api_key": "CHANGE_ME_STRONG_API_KEY_12345"})
+
+
+def test_auth_allows_enabled_with_key() -> None:
+    settings = Settings(auth={"enabled": True, "api_key": "s3cret-key"})
+    assert settings.auth.enabled is True
+    assert settings.auth.api_key == "s3cret-key"
+
+
+def test_auth_disabled_allows_empty_key() -> None:
+    settings = Settings(auth={"enabled": False, "api_key": ""})
+    assert settings.auth.enabled is False
+
+
+def test_yaml_auth_fail_closed_without_env(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.delenv("AUTH_API_KEY", raising=False)
+    monkeypatch.delenv("AUTH__ENABLED", raising=False)
+    monkeypatch.delenv("AUTH__API_KEY", raising=False)
+    yaml_path = tmp_path / "settings.yaml"
+    yaml_path.write_text('auth:\n  enabled: true\n  api_key: "${AUTH_API_KEY}"\n')
+    with pytest.raises(ValueError, match="AUTH_API_KEY"):
+        Settings.from_yaml(yaml_path)
+
+
+def test_yaml_auth_resolves_env_key(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("AUTH_API_KEY", "resolved-secret")
+    monkeypatch.delenv("AUTH__ENABLED", raising=False)
+    monkeypatch.delenv("AUTH__API_KEY", raising=False)
+    yaml_path = tmp_path / "settings.yaml"
+    yaml_path.write_text('auth:\n  enabled: true\n  api_key: "${AUTH_API_KEY}"\n')
+    settings = Settings.from_yaml(yaml_path)
+    assert settings.auth.enabled is True
+    assert settings.auth.api_key == "resolved-secret"
+
+
+def test_yaml_env_overrides_yaml_values(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("AUTH__ENABLED", "false")
+    yaml_path = tmp_path / "settings.yaml"
+    yaml_path.write_text('auth:\n  enabled: true\n  api_key: "file-key"\n')
+    settings = Settings.from_yaml(yaml_path)
+    assert settings.auth.enabled is False

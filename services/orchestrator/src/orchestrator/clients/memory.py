@@ -13,10 +13,23 @@ class MemoryClientError(Exception):
 
 
 class MemoryClient:
-    def __init__(self, base_url: str, timeout: float = 10.0) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        timeout: float = 10.0,
+        api_key: str | None = None,
+        api_key_header: str = "X-API-Key",
+    ) -> None:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
+        self.api_key = api_key
+        self.api_key_header = api_key_header
         self._http: httpx.AsyncClient | None = None
+
+    def _auth_headers(self) -> dict[str, str]:
+        if self.api_key:
+            return {self.api_key_header: self.api_key}
+        return {}
 
     async def _get_client(self) -> httpx.AsyncClient:
         if self._http is None:
@@ -28,6 +41,7 @@ class MemoryClient:
         resp = await client.post(
             "/api/memory/turns",
             json={"session_id": session_id, "role": role, "content": content},
+            headers=self._auth_headers(),
         )
         if resp.status_code >= 400:
             raise MemoryClientError(
@@ -41,7 +55,9 @@ class MemoryClient:
     ) -> list[dict[str, Any]]:
         client = await self._get_client()
         resp = await client.get(
-            f"/api/memory/turns/{session_id}", params={"limit": limit}
+            f"/api/memory/turns/{session_id}",
+            params={"limit": limit},
+            headers=self._auth_headers(),
         )
         if resp.status_code >= 400:
             raise MemoryClientError(
@@ -57,6 +73,7 @@ class MemoryClient:
         resp = await client.post(
             "/api/memory/recall",
             json={"session_id": session_id, "query": query, "max_results": max_results},
+            headers=self._auth_headers(),
         )
         if resp.status_code >= 400:
             raise MemoryClientError(f"recall failed: {resp.status_code} {resp.text}")
@@ -65,7 +82,9 @@ class MemoryClient:
 
     async def clear_session(self, session_id: str) -> None:
         client = await self._get_client()
-        resp = await client.delete(f"/api/memory/turns/{session_id}")
+        resp = await client.delete(
+            f"/api/memory/turns/{session_id}", headers=self._auth_headers()
+        )
         if resp.status_code >= 400:
             raise MemoryClientError(
                 f"clear_session failed: {resp.status_code} {resp.text}"

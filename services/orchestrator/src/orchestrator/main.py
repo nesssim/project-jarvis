@@ -10,13 +10,16 @@ import redis.asyncio as redis
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from shared.config import load_settings
-from shared.http import add_request_size_limit, setup_cors, setup_rate_limiter
+from shared.http import (
+    add_request_size_limit,
+    setup_auth,
+    setup_cors,
+    setup_rate_limiter,
+)
 from shared.logging import get_logger, setup_logging
 from shared.redis import close_redis_clients, create_redis_clients
 from slowapi import Limiter
 from slowapi.util import get_remote_address
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
 
 from orchestrator.clients.llm import BaseLLMClient, create_llm_client
 from orchestrator.clients.memory import MemoryClient
@@ -79,10 +82,26 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.llm_client = create_llm_client(settings.llm)
     app.state.warmup_task = asyncio.create_task(_warmup_llm(app.state.llm_client))
     app.state.prompt_manager = PromptManager()
-    app.state.stt_client = STTClient(settings.internal_urls.stt)
-    app.state.tts_client = TTSClient(settings.internal_urls.tts)
-    app.state.memory_client = MemoryClient(settings.internal_urls.memory)
-    app.state.tools_client = ToolsClient(settings.internal_urls.tools)
+    app.state.stt_client = STTClient(
+        settings.internal_urls.stt,
+        api_key=settings.auth.api_key if settings.auth.enabled else None,
+        api_key_header=settings.auth.api_key_header,
+    )
+    app.state.tts_client = TTSClient(
+        settings.internal_urls.tts,
+        api_key=settings.auth.api_key if settings.auth.enabled else None,
+        api_key_header=settings.auth.api_key_header,
+    )
+    app.state.memory_client = MemoryClient(
+        settings.internal_urls.memory,
+        api_key=settings.auth.api_key if settings.auth.enabled else None,
+        api_key_header=settings.auth.api_key_header,
+    )
+    app.state.tools_client = ToolsClient(
+        settings.internal_urls.tools,
+        api_key=settings.auth.api_key if settings.auth.enabled else None,
+        api_key_header=settings.auth.api_key_header,
+    )
 
     if threading.current_thread() is threading.main_thread():
         loop = asyncio.get_event_loop()
@@ -123,7 +142,6 @@ async def handle_shutdown(sig: signal.Signals) -> None:
 
 app = FastAPI(title="J.A.R.V.I.S. Orchestrator", version="0.1.0", lifespan=lifespan)
 
-setup_rate_limiter(app, limiter)
 
 app.include_router(chat_router)
 app.include_router(voice_router)
@@ -132,20 +150,9 @@ app.include_router(ws_router)
 setup_cors(app, settings)
 
 
-class AuthMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        if settings.auth.enabled and request.url.path not in ("/health", "/"):
-            api_key = request.headers.get(settings.auth.api_key_header, "")
-            if api_key != settings.auth.api_key:
-                logger.warning("rest auth rejected", path=request.url.path)
-                return JSONResponse(
-                    status_code=401, content={"detail": "Invalid or missing API key"}
-                )
-        return await call_next(request)
-
-
 add_request_size_limit(app)
-app.add_middleware(AuthMiddleware)
+setup_auth(app, settings)
+setup_rate_limiter(app, limiter)
 
 
 @app.get("/health")

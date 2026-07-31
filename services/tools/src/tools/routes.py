@@ -4,7 +4,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from tools.registry import ToolNotFoundError, ToolRegistry
+from tools.registry import ToolNotFoundError, ToolRegistry, tool_tier_allowed
 
 router = APIRouter(prefix="/api/tools", tags=["tools"])
 
@@ -22,6 +22,28 @@ class SearchRequest(BaseModel):
 @router.post("/execute", response_model=None)
 async def execute_tool(request: Request, body: ExecuteRequest) -> dict | JSONResponse:
     registry: ToolRegistry = request.app.state.tool_registry
+    if registry.get_tool(body.tool) is None:
+        return JSONResponse(
+            status_code=404, content={"error": f"Tool not found: {body.tool}"}
+        )
+    settings = getattr(request.app.state, "settings", None)
+    if settings is None:
+        return JSONResponse(
+            status_code=503, content={"error": "Service configuration unavailable"}
+        )
+    safety = settings.tools
+    if not tool_tier_allowed(
+        body.tool, safety.safety_tiers, safety.safety_permitted_tier
+    ):
+        return JSONResponse(
+            status_code=403,
+            content={
+                "error": (
+                    f"Tool '{body.tool}' is not allowed under the current "
+                    f"safety tier ('{safety.safety_permitted_tier}')"
+                )
+            },
+        )
     try:
         result = await registry.execute(body.tool, body.params)
         return {"result": result}

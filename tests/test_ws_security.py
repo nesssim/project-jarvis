@@ -27,6 +27,7 @@ def mock_services():
         mock_settings.auth.enabled = True
         mock_settings.auth.api_key = "test-secret-key"
         mock_settings.auth.api_key_header = "X-API-Key"
+        mock_settings.cors.allowed_origins = ["http://localhost"]
         mock_settings.audio.sample_rate = 16000
         mock_settings.audio.channels = 1
         mock_settings.audio.sample_width = 2
@@ -78,6 +79,45 @@ def ws_client(mock_services):
 def _connect(ws_client, api_key="test-secret-key"):
     headers = {"X-API-Key": api_key} if api_key else {}
     return ws_client.websocket_connect("/ws/audio", headers=headers)
+
+
+def _connect_with_origin(ws_client, origin: str):
+    return ws_client.websocket_connect(
+        "/ws/audio", headers={"X-API-Key": "test-secret-key", "Origin": origin}
+    )
+
+
+class TestWebSocketOriginValidation:
+    def test_ws_origin_disallowed_rejected(self, ws_client):
+        with (
+            pytest.raises(WebSocketDisconnect) as exc_info,
+            _connect_with_origin(ws_client, "http://evil.example") as ws,
+        ):
+            ws.receive_json()
+        assert exc_info.value.code == 1008
+
+    def test_ws_origin_allowed_connects(self, ws_client):
+        with _connect_with_origin(ws_client, "http://localhost") as ws:
+            data = ws.receive_json()
+            assert data["type"] == "connected"
+
+
+class TestWebSocketAuth:
+    def test_ws_without_api_key_rejected(self, ws_client):
+        with (
+            pytest.raises(WebSocketDisconnect) as exc_info,
+            _connect(ws_client, api_key=None) as ws,
+        ):
+            ws.receive_json()
+        assert exc_info.value.code == 4001
+
+    def test_ws_with_wrong_api_key_rejected(self, ws_client):
+        with (
+            pytest.raises(WebSocketDisconnect) as exc_info,
+            _connect(ws_client, api_key="wrong-key") as ws,
+        ):
+            ws.receive_json()
+        assert exc_info.value.code == 4001
 
 
 class TestAudioBufferOverflow:

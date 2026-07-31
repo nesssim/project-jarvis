@@ -14,6 +14,7 @@ def test_client():
     ):
         mock_settings.memory.short_term.max_turns = 20
         mock_settings.rate_limiting.default = "100/minute"
+        mock_settings.auth.enabled = False
         from memory.main import app
 
         with TestClient(app) as client:

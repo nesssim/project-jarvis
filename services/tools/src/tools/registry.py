@@ -9,6 +9,23 @@ logger = get_logger("tools.registry")
 
 ToolHandler = Callable[..., Coroutine[Any, Any, Any]]
 
+TIER_ORDER = ("safe", "confirm", "restricted")
+
+
+def tool_tier_allowed(
+    tool: str, safety_tiers: dict[str, list[str]], permitted_tier: str
+) -> bool:
+    tool_tier = next(
+        (tier for tier, names in safety_tiers.items() if tool in names), None
+    )
+    if (
+        tool_tier is None
+        or tool_tier not in TIER_ORDER
+        or permitted_tier not in TIER_ORDER
+    ):
+        return False
+    return TIER_ORDER.index(tool_tier) <= TIER_ORDER.index(permitted_tier)
+
 
 class ToolNotFoundError(Exception):
     pass
