@@ -42,8 +42,7 @@ def _create_vad() -> VADProcessor:
     settings = load_settings()
     vad_cfg = settings.stt.vad
     return VADProcessor(
-        threshold=vad_cfg.threshold,
-        silence_duration_ms=vad_cfg.silence_duration_ms,
+        threshold=vad_cfg.threshold, silence_duration_ms=vad_cfg.silence_duration_ms
     )
 
 
@@ -75,10 +74,7 @@ async def _receive_audio_chunks(request: Request) -> AsyncIterator[bytes]:
 
 
 def _resample_to_16k(
-    chunk: bytes,
-    sample_rate: int,
-    channels: int,
-    sample_width: int,
+    chunk: bytes, sample_rate: int, channels: int, sample_width: int
 ) -> bytes:
     """Resample multi-channel/non-16k audio to 16kHz mono.
 
@@ -163,9 +159,7 @@ async def transcribe_stream(request: Request):
         try:
             async for frame in _receive_audio_chunks(request):
                 # Resample to 16kHz mono if needed
-                pcm_frame = _resample_to_16k(
-                    frame, sample_rate, channels, sample_width
-                )
+                pcm_frame = _resample_to_16k(frame, sample_rate, channels, sample_width)
 
                 # Add to buffer
                 audio_buffer.extend(pcm_frame)
@@ -183,20 +177,14 @@ async def transcribe_stream(request: Request):
                     if event.type == VADEventType.SPEECH_START:
                         utterance_active = True
                         yield _make_sse(
-                            "vad.speech_start",
-                            {"timestamp": event.timestamp},
+                            "vad.speech_start", {"timestamp": event.timestamp}
                         )
-                        logger.debug(
-                            "vad speech start",
-                            timestamp=event.timestamp,
-                        )
+                        logger.debug("vad speech start", timestamp=event.timestamp)
 
                     elif event.type == VADEventType.SPEECH_END:
                         end_payload = {
                             "silence_duration_ms": vad.silence_duration_ms,
-                            "utterance_duration_ms": round(
-                                event.timestamp * 1000
-                            ),
+                            "utterance_duration_ms": round(event.timestamp * 1000),
                         }
                         yield _make_sse("vad.speech_end", end_payload)
                         logger.debug(
@@ -213,22 +201,14 @@ async def transcribe_stream(request: Request):
                                     "transcript.final",
                                     {
                                         "text": final_text,
-                                        "confidence": result.get(
-                                            "confidence", 0.0
-                                        ),
-                                        "language": result.get(
-                                            "language", "en"
-                                        ),
+                                        "confidence": result.get("confidence", 0.0),
+                                        "language": result.get("language", "en"),
                                     },
                                 )
                         except Exception as e:
                             yield _make_sse(
                                 "error",
-                                {
-                                    "message": (
-                                        f"Final transcription failed: {e}"
-                                    ),
-                                },
+                                {"message": (f"Final transcription failed: {e}")},
                             )
                             return
                         finally:
@@ -247,12 +227,8 @@ async def transcribe_stream(request: Request):
                     # Only emit partials every ~3 iterations to reduce load
                     if partial_counter % 3 == 0 and len(audio_buffer) >= 160:
                         try:
-                            partial_result = stt.transcribe(
-                                bytes(audio_buffer)
-                            )
-                            partial_text = partial_result.get(
-                                "text", ""
-                            ).strip()
+                            partial_result = stt.transcribe(bytes(audio_buffer))
+                            partial_text = partial_result.get("text", "").strip()
                             if partial_text:
                                 yield _make_sse(
                                     "transcript.partial",
@@ -290,8 +266,7 @@ async def transcribe_stream(request: Request):
                         )
                 except Exception as e:
                     yield _make_sse(
-                        "error",
-                        {"message": f"Final transcription failed: {e}"},
+                        "error", {"message": f"Final transcription failed: {e}"}
                     )
 
         except Exception as e:
@@ -301,8 +276,5 @@ async def transcribe_stream(request: Request):
     return StreamingResponse(
         event_stream(),
         media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",
-        },
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )

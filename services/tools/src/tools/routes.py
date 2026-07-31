@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from tools.registry import ToolNotFoundError, ToolRegistry
@@ -18,19 +19,14 @@ class SearchRequest(BaseModel):
     max_results: int = Field(default=5, ge=1, le=20)
 
 
-@router.post("/execute")
-async def execute_tool(request: Request, body: ExecuteRequest) -> dict:
+@router.post("/execute", response_model=None)
+async def execute_tool(request: Request, body: ExecuteRequest) -> dict | JSONResponse:
     registry: ToolRegistry = request.app.state.tool_registry
     try:
         result = await registry.execute(body.tool, body.params)
         return {"result": result}
     except ToolNotFoundError as e:
-        from fastapi.responses import JSONResponse
-
-        return JSONResponse(
-            status_code=404,
-            content={"error": str(e)},
-        )
+        return JSONResponse(status_code=404, content={"error": str(e)})
 
 
 @router.get("/list")

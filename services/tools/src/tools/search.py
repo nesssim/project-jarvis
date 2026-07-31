@@ -22,11 +22,13 @@ async def web_search(query: str, max_results: int = 5) -> dict:
                     url = str(r.get("href", r.get("url", "")))
                     if not url.startswith(("http://", "https://")):
                         continue
-                    results.append({
-                        "title": str(r.get("title", "")),
-                        "url": url,
-                        "snippet": str(r.get("body", r.get("snippet", ""))),
-                    })
+                    results.append(
+                        {
+                            "title": str(r.get("title", "")),
+                            "url": url,
+                            "snippet": str(r.get("body", r.get("snippet", ""))),
+                        }
+                    )
                     if len(results) >= max_results:
                         break
             return results
@@ -37,13 +39,9 @@ async def web_search(query: str, max_results: int = 5) -> dict:
 
     except ImportError:
         logger.exception(
-            "duckduckgo_search not installed; "
-            "run: pip install duckduckgo_search"
+            "duckduckgo_search not installed; run: pip install duckduckgo_search"
         )
-        return {
-            "results": [],
-            "error": "duckduckgo_search library not installed",
-        }
+        return {"results": [], "error": "duckduckgo_search library not installed"}
     except Exception as e:
         logger.exception("web search failed", error=str(e))
         return {"results": [], "error": str(e)}

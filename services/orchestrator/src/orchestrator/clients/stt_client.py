@@ -21,25 +21,21 @@ class STTClient:
 
     async def _get_client(self) -> httpx.AsyncClient:
         if self._http is None:
-            self._http = httpx.AsyncClient(
-                base_url=self.base_url, timeout=self.timeout
-            )
+            self._http = httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout)
         return self._http
 
     async def transcribe(self, audio_bytes: bytes) -> dict:
         client = await self._get_client()
         resp = await client.post(
-            "/transcribe",
-            content=audio_bytes,
-            headers={"Content-Type": "audio/wav"},
+            "/transcribe", content=audio_bytes, headers={"Content-Type": "audio/wav"}
         )
         if resp.status_code >= 400:
-            raise STTClientError(
-                f"transcribe failed: {resp.status_code} {resp.text}"
-            )
+            raise STTClientError(f"transcribe failed: {resp.status_code} {resp.text}")
         return resp.json()
 
-    async def check_vad(self, audio_chunk: bytes, session_id: str | None = None) -> dict:
+    async def check_vad(
+        self, audio_chunk: bytes, session_id: str | None = None
+    ) -> dict:
         """Check VAD state for an audio chunk.
 
         Sends raw PCM audio to the STT service's VAD endpoint.
@@ -54,9 +50,7 @@ class STTClient:
             params=params,
         )
         if resp.status_code >= 400:
-            raise STTClientError(
-                f"vad check failed: {resp.status_code} {resp.text}"
-            )
+            raise STTClientError(f"vad check failed: {resp.status_code} {resp.text}")
         return resp.json()
 
     async def reset_vad(self, session_id: str | None = None) -> None:
@@ -66,9 +60,7 @@ class STTClient:
         await client.post("/vad/reset", params=params)
 
     async def transcribe_stream(
-        self,
-        audio_iterator: AsyncIterator[bytes],
-        sample_rate: int = 16000,
+        self, audio_iterator: AsyncIterator[bytes], sample_rate: int = 16000
     ) -> AsyncIterator[dict]:
         """Stream audio to the STT service and receive transcription events.
 
@@ -90,13 +82,13 @@ class STTClient:
             if response.status_code >= 400:
                 error_text = await response.aread()
                 raise STTClientError(
-                    f"transcribe stream failed: "
-                    f"{response.status_code} {error_text}"
+                    f"transcribe stream failed: {response.status_code} "
+                    f"{error_text.decode(errors='replace')}"
                 )
 
             event_type = ""
-            async for line in response.aiter_lines():
-                line = line.strip()
+            async for raw_line in response.aiter_lines():
+                line = raw_line.strip()
                 if line.startswith("event: "):
                     event_type = line[7:]
                 elif line.startswith("data: "):

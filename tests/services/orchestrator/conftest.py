@@ -98,26 +98,11 @@ def mock_prompt_manager():
 def test_client(mock_llm, mock_prompt_manager, mock_memory_client, mock_tools_client):
     with (
         patch("orchestrator.main.settings") as mock_settings,
-        patch(
-            "orchestrator.main.create_redis_clients",
-            return_value=(None, None),
-        ),
-        patch(
-            "orchestrator.main.create_llm_client",
-            return_value=mock_llm,
-        ),
-        patch(
-            "orchestrator.main.PromptManager",
-            return_value=mock_prompt_manager,
-        ),
-        patch(
-            "orchestrator.main.MemoryClient",
-            return_value=mock_memory_client,
-        ),
-        patch(
-            "orchestrator.main.ToolsClient",
-            return_value=mock_tools_client,
-        ),
+        patch("orchestrator.main.create_redis_clients", return_value=(None, None)),
+        patch("orchestrator.main.create_llm_client", return_value=mock_llm),
+        patch("orchestrator.main.PromptManager", return_value=mock_prompt_manager),
+        patch("orchestrator.main.MemoryClient", return_value=mock_memory_client),
+        patch("orchestrator.main.ToolsClient", return_value=mock_tools_client),
     ):
         mock_settings.rate_limiting.default = "100/minute"
         mock_settings.auth.enabled = False

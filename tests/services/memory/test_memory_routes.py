@@ -63,7 +63,12 @@ class TestMemoryRoutes:
         mock_store.get_recent = AsyncMock(
             return_value=[
                 {"turn_id": "1", "role": "user", "content": "first", "timestamp": 1.0},
-                {"turn_id": "2", "role": "assistant", "content": "response", "timestamp": 2.0},
+                {
+                    "turn_id": "2",
+                    "role": "assistant",
+                    "content": "response",
+                    "timestamp": 2.0,
+                },
             ]
         )
         test_client.app.state.memory_store = mock_store
@@ -73,7 +78,9 @@ class TestMemoryRoutes:
 
     def test_recall(self, test_client):
         mock_store = AsyncMock()
-        mock_store.recall = AsyncMock(return_value=[{"content": "Python", "score": 0.8}])
+        mock_store.recall = AsyncMock(
+            return_value=[{"content": "Python", "score": 0.8}]
+        )
         test_client.app.state.memory_store = mock_store
 
         resp = test_client.post(
@@ -84,8 +91,7 @@ class TestMemoryRoutes:
 
     def test_recall_validation(self, test_client):
         resp = test_client.post(
-            "/api/memory/recall",
-            json={"session_id": "s1", "query": ""},
+            "/api/memory/recall", json={"session_id": "s1", "query": ""}
         )
         assert resp.status_code == 422
 

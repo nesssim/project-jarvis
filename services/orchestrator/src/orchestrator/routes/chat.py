@@ -49,9 +49,7 @@ async def chat(request: Request, body: ChatRequest):
     memory_client: MemoryClient | None = getattr(
         request.app.state, "memory_client", None
     )
-    tools_client: ToolsClient | None = getattr(
-        request.app.state, "tools_client", None
-    )
+    tools_client: ToolsClient | None = getattr(request.app.state, "tools_client", None)
 
     session_id = body.session_id or uuid.uuid4().hex[:12]
 
@@ -103,10 +101,7 @@ async def chat(request: Request, body: ChatRequest):
             follow_up_messages = [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": body.message},
-                {
-                    "role": "assistant",
-                    "content": clean_response or full_response,
-                },
+                {"role": "assistant", "content": clean_response or full_response},
                 {
                     "role": "system",
                     "content": (

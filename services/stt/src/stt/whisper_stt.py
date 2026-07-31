@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 
 class STTModelError(Exception):
@@ -8,13 +8,10 @@ class STTModelError(Exception):
 
 
 class WhisperSTT:
-    _instances: dict[str, WhisperSTT] = {}
+    _instances: ClassVar[dict[str, WhisperSTT]] = {}
 
     def __new__(
-        cls,
-        model_size: str = "tiny",
-        device: str = "cpu",
-        compute_type: str = "int8",
+        cls, model_size: str = "tiny", device: str = "cpu", compute_type: str = "int8"
     ) -> WhisperSTT:
         key = f"{model_size}:{device}:{compute_type}"
         if key not in cls._instances:
@@ -24,10 +21,7 @@ class WhisperSTT:
         return cls._instances[key]
 
     def __init__(
-        self,
-        model_size: str = "tiny",
-        device: str = "cpu",
-        compute_type: str = "int8",
+        self, model_size: str = "tiny", device: str = "cpu", compute_type: str = "int8"
     ) -> None:
         if getattr(self, "_initialized", False):
             return
@@ -44,9 +38,7 @@ class WhisperSTT:
             import faster_whisper  # type: ignore[import-untyped]
 
             self._model = faster_whisper.WhisperModel(
-                self._model_size,
-                device=self._device,
-                compute_type=self._compute_type,
+                self._model_size, device=self._device, compute_type=self._compute_type
             )
         except OSError as e:
             raise STTModelError(
@@ -57,7 +49,12 @@ class WhisperSTT:
         self, audio_bytes: bytes, language: str | None = None
     ) -> dict[str, Any]:
         if not audio_bytes or len(audio_bytes) < 160:
-            return {"text": "", "language": language or "en", "segments": [], "confidence": 0.0}
+            return {
+                "text": "",
+                "language": language or "en",
+                "segments": [],
+                "confidence": 0.0,
+            }
 
         self._load_model()
         assert self._model is not None
@@ -77,21 +74,21 @@ class WhisperSTT:
             wav_buffer.seek(0)
 
         segments, info = self._model.transcribe(
-            wav_buffer,
-            language=language,
-            beam_size=5,
+            wav_buffer, language=language, beam_size=5
         )
 
         result_segments = []
         total_prob = 0.0
         seg_count = 0
         for seg in segments:
-            result_segments.append({
-                "text": seg.text,
-                "start": seg.start,
-                "end": seg.end,
-                "probability": seg.probability,
-            })
+            result_segments.append(
+                {
+                    "text": seg.text,
+                    "start": seg.start,
+                    "end": seg.end,
+                    "probability": seg.probability,
+                }
+            )
             total_prob += seg.probability
             seg_count += 1
 

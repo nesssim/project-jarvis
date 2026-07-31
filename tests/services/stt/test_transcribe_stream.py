@@ -67,7 +67,7 @@ def _make_request(body: bytes, query: str = "") -> Request:
         "http_version": "1.1",
     }
     request = Request(scope)
-    request._body = body  # noqa: SLF001
+    request._body = body
     return request
 
 
@@ -186,17 +186,17 @@ class TestTranscribeStreamRoute:
 class TestTranscribeStreamHelpers:
     def test_make_sse_format(self) -> None:
         payload = {"a": 1, "b": "x"}
-        sse = ts_module._make_sse("test.event", payload)  # noqa: SLF001
+        sse = ts_module._make_sse("test.event", payload)
         assert sse == f"event: test.event\ndata: {json.dumps(payload)}\n\n"
 
     def test_resample_passthrough_16k_mono(self) -> None:
         chunk = ZERO_FRAME
-        assert ts_module._resample_to_16k(chunk, 16000, 1, 2) == chunk  # noqa: SLF001
+        assert ts_module._resample_to_16k(chunk, 16000, 1, 2) == chunk
 
     def test_resample_stereo_to_mono(self) -> None:
-        out = ts_module._resample_to_16k(ZERO_FRAME, 16000, 2, 2)  # noqa: SLF001
+        out = ts_module._resample_to_16k(ZERO_FRAME, 16000, 2, 2)
         assert len(out) == len(ZERO_FRAME) // 2
 
     def test_resample_8k_mono_upsamples(self) -> None:
-        out = ts_module._resample_to_16k(ZERO_FRAME, 8000, 1, 2)  # noqa: SLF001
+        out = ts_module._resample_to_16k(ZERO_FRAME, 8000, 1, 2)
         assert len(out) == len(ZERO_FRAME) * 2

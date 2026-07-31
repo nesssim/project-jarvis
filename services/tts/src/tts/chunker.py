@@ -4,8 +4,7 @@ import re
 from collections.abc import AsyncIterator
 
 SENTENCE_BOUNDARY = re.compile(
-    r"(?<=[.!?])[\"\'»„]?\s+(?=[A-Z\"'«»„])"
-    r"|(?<=[.!?])(?=\Z)"
+    r"(?<=[.!?])[\"\'»„]?\s+(?=[A-Z\"'«»„])|(?<=[.!?])(?=\Z)"
 )
 
 

@@ -42,8 +42,7 @@ _shutdown_event = asyncio.Event()
 
 
 limiter = Limiter(
-    key_func=get_remote_address,
-    default_limits=[settings.rate_limiting.default],
+    key_func=get_remote_address, default_limits=[settings.rate_limiting.default]
 )
 
 
@@ -62,8 +61,7 @@ async def _warmup_llm(llm_client: BaseLLMClient) -> None:
     """Pre-warm the LLM connection by sending a minimal request."""
     try:
         async for _ in llm_client.generate(
-            messages=[{"role": "user", "content": "Hello"}],
-            stream=True,
+            messages=[{"role": "user", "content": "Hello"}], stream=True
         ):
             break
         logger.info("llm warmup complete")
@@ -79,7 +77,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     app.state.settings = settings
     app.state.llm_client = create_llm_client(settings.llm)
-    asyncio.create_task(_warmup_llm(app.state.llm_client))
+    app.state.warmup_task = asyncio.create_task(_warmup_llm(app.state.llm_client))
     app.state.prompt_manager = PromptManager()
     app.state.stt_client = STTClient(settings.internal_urls.stt)
     app.state.tts_client = TTSClient(settings.internal_urls.tts)
@@ -98,6 +96,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     yield
 
     logger.info("shutting down orchestrator")
+    warmup_task = getattr(app.state, "warmup_task", None)
+    if warmup_task is not None and not warmup_task.done():
+        warmup_task.cancel()
     await close_redis_clients(redis_client, redis_binary)
     for attr in ("stt_client", "tts_client", "memory_client", "tools_client"):
         client = getattr(app.state, attr, None)
@@ -136,12 +137,12 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if settings.auth.enabled and request.url.path not in ("/health", "/"):
             api_key = request.headers.get(settings.auth.api_key_header, "")
             if api_key != settings.auth.api_key:
-                    logger.warning("rest auth rejected", path=request.url.path)
-                    return JSONResponse(
-                        status_code=401,
-                        content={"detail": "Invalid or missing API key"},
-                    )
+                logger.warning("rest auth rejected", path=request.url.path)
+                return JSONResponse(
+                    status_code=401, content={"detail": "Invalid or missing API key"}
+                )
         return await call_next(request)
+
 
 add_request_size_limit(app)
 app.add_middleware(AuthMiddleware)

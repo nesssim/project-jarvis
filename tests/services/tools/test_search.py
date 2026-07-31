@@ -42,6 +42,7 @@ class TestWebSearch:
 
     async def test_search_import_error(self):
         import builtins
+
         real_import = builtins.__import__
 
         def mock_import(name, *args, **kwargs):

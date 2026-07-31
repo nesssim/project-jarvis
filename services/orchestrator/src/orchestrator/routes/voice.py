@@ -27,11 +27,7 @@ async def voice_pipeline(request: Request):
     if not text.strip():
         logger.info("voice pipeline: no speech detected")
         return Response(
-            content=b"",
-            media_type="audio/wav",
-            headers={
-                "X-Confidence": "0",
-            },
+            content=b"", media_type="audio/wav", headers={"X-Confidence": "0"}
         )
 
     confidence = transcription_result.get("confidence", 0)

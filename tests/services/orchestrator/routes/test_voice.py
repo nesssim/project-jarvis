@@ -15,7 +15,9 @@ class MockSTTClient:
         return {
             "text": "hello world",
             "language": "en",
-            "segments": [{"text": "hello world", "start": 0, "end": 1.2, "confidence": 0.98}],
+            "segments": [
+                {"text": "hello world", "start": 0, "end": 1.2, "confidence": 0.98}
+            ],
             "confidence": 0.98,
         }
 
@@ -38,7 +40,11 @@ class MockTTSClient:
 class MockLLM:
     def __init__(self, tokens=None):
         self._tokens = tokens or ["mock ", "response"]
-        self.config = type("obj", (object,), {"generation": type("obj", (object,), {"max_tokens": 2048})})()
+        self.config = type(
+            "obj",
+            (object,),
+            {"generation": type("obj", (object,), {"max_tokens": 2048})},
+        )()
 
     async def generate(self, messages, stream=True, max_tokens=None, temperature=None):
         for t in self._tokens:
@@ -86,22 +92,39 @@ def voice_client():
 
 class TestVoicePipeline:
     def test_voice_returns_audio(self, voice_client):
-        wav_header = b"RIFF\x24\x00\x00\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00\x80>\x00\x00\x00}\x00\x00\x02\x00\x10\x00data\x00\x00\x00\x00"
+        wav_header = (
+            b"RIFF\x24\x00\x00\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00\x80>"
+            b"\x00\x00\x00}\x00\x00\x02\x00\x10\x00data\x00\x00\x00\x00"
+        )
         audio_bytes = wav_header + b"\x00" * 16000
-        response = voice_client.post("/voice", content=audio_bytes, headers={"Content-Type": "audio/wav"})
+        response = voice_client.post(
+            "/voice", content=audio_bytes, headers={"Content-Type": "audio/wav"}
+        )
         assert response.status_code == 200
         assert response.headers["content-type"] == "audio/wav"
         assert response.headers.get("X-Confidence", "") == "0.98"
         assert len(response.content) > 0
 
     def test_voice_empty_body_returns_400(self, voice_client):
-        response = voice_client.post("/voice", content=b"", headers={"Content-Type": "audio/wav"})
+        response = voice_client.post(
+            "/voice", content=b"", headers={"Content-Type": "audio/wav"}
+        )
         assert response.status_code == 400
 
     def test_voice_empty_transcription_returns_empty_audio(self, voice_client):
         voice_client.app.state.stt_client = MockSTTClient()
-        voice_client.app.state.stt_client.transcribe = AsyncMock(return_value={"text": "", "confidence": 0})
+        voice_client.app.state.stt_client.transcribe = AsyncMock(
+            return_value={"text": "", "confidence": 0}
+        )
 
-        response = voice_client.post("/voice", content=b"RIFF\x24\x00\x00\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00\x80>\x00\x00\x00}\x00\x00\x02\x00\x10\x00data\x00\x00\x00\x00" + b"\x00" * 16000, headers={"Content-Type": "audio/wav"})
+        response = voice_client.post(
+            "/voice",
+            content=(
+                b"RIFF\x24\x00\x00\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00\x80>"
+                b"\x00\x00\x00}\x00\x00\x02\x00\x10\x00data\x00\x00\x00\x00"
+                + b"\x00" * 16000
+            ),
+            headers={"Content-Type": "audio/wav"},
+        )
         assert response.status_code == 200
         assert response.headers.get("X-Confidence", "") == "0"

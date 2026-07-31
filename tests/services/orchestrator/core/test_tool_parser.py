@@ -20,9 +20,7 @@ class TestParseToolCalls:
         assert calls[0].params["query"] == "python tutorials"
 
     def test_multiple_markers(self):
-        calls = parse_tool_calls(
-            "[SEARCH: first] and [SEARCH: second]"
-        )
+        calls = parse_tool_calls("[SEARCH: first] and [SEARCH: second]")
         assert len(calls) == 2
         assert calls[0].params["query"] == "first"
         assert calls[1].params["query"] == "second"

@@ -36,15 +36,15 @@ def mock_piper_modules():
 
 class TestPiperTTS:
     def test_synthesize_returns_audio_chunks(self, mock_piper_modules):
-        MockVoice = mock_piper_modules["Voice"]
-        MockPiperVoice = mock_piper_modules["PiperVoice"]
+        mock_voice = mock_piper_modules["Voice"]
+        mock_piper_voice = mock_piper_modules["PiperVoice"]
 
         voice_instance = MagicMock()
-        MockVoice.return_value = voice_instance
+        mock_voice.return_value = voice_instance
 
         piper_voice_instance = MagicMock()
         piper_voice_instance.synthesize.return_value = (b"\x00" * 16000, 22050)
-        MockPiperVoice.return_value = piper_voice_instance
+        mock_piper_voice.return_value = piper_voice_instance
 
         tts = PiperTTS(model_path="/fake/model.pt", voice="default")
         chunks = list(tts.synthesize("Hello world"))
@@ -54,16 +54,16 @@ class TestPiperTTS:
         assert len(chunks[0]) > 0
 
     def test_synthesize_chunks_are_valid_audio(self, mock_piper_modules):
-        MockVoice = mock_piper_modules["Voice"]
-        MockPiperVoice = mock_piper_modules["PiperVoice"]
+        mock_voice = mock_piper_modules["Voice"]
+        mock_piper_voice = mock_piper_modules["PiperVoice"]
 
         voice_instance = MagicMock()
-        MockVoice.return_value = voice_instance
+        mock_voice.return_value = voice_instance
 
         piper_voice_instance = MagicMock()
         mock_wav = b"\x00" * 16000
         piper_voice_instance.synthesize.return_value = (mock_wav, 22050)
-        MockPiperVoice.return_value = piper_voice_instance
+        mock_piper_voice.return_value = piper_voice_instance
 
         tts = PiperTTS(model_path="/fake/model.pt", voice="default")
         chunks = list(tts.synthesize("Hello world"))
@@ -80,15 +80,15 @@ class TestPiperTTS:
             list(tts.synthesize("   \n  \t  "))
 
     def test_long_text_chunked_correctly(self, mock_piper_modules):
-        MockVoice = mock_piper_modules["Voice"]
-        MockPiperVoice = mock_piper_modules["PiperVoice"]
+        mock_voice = mock_piper_modules["Voice"]
+        mock_piper_voice = mock_piper_modules["PiperVoice"]
 
         voice_instance = MagicMock()
-        MockVoice.return_value = voice_instance
+        mock_voice.return_value = voice_instance
 
         piper_voice_instance = MagicMock()
         piper_voice_instance.synthesize.return_value = (b"\x00" * 8000, 22050)
-        MockPiperVoice.return_value = piper_voice_instance
+        mock_piper_voice.return_value = piper_voice_instance
 
         long_text = "Hello. " * 50
 
@@ -98,27 +98,23 @@ class TestPiperTTS:
         assert sum(len(c) for c in chunks) > 0
 
     def test_model_not_found_raises_error(self, mock_piper_modules):
-        MockVoice = mock_piper_modules["Voice"]
-        MockVoice.side_effect = Exception("Model not found")
+        mock_voice = mock_piper_modules["Voice"]
+        mock_voice.side_effect = Exception("Model not found")
 
         with pytest.raises(Exception, match="Model not found"):
             PiperTTS(model_path="/nonexistent/model.pt", voice="default")
 
     def test_sample_rate_configurable(self, mock_piper_modules):
-        MockVoice = mock_piper_modules["Voice"]
-        MockPiperVoice = mock_piper_modules["PiperVoice"]
+        mock_voice = mock_piper_modules["Voice"]
+        mock_piper_voice = mock_piper_modules["PiperVoice"]
 
         voice_instance = MagicMock()
-        MockVoice.return_value = voice_instance
+        mock_voice.return_value = voice_instance
 
         piper_voice_instance = MagicMock()
         piper_voice_instance.synthesize.return_value = (b"\x00" * 16000, 44100)
-        MockPiperVoice.return_value = piper_voice_instance
+        mock_piper_voice.return_value = piper_voice_instance
 
-        tts = PiperTTS(
-            model_path="/fake/model.pt",
-            voice="default",
-            sample_rate=44100,
-        )
+        tts = PiperTTS(model_path="/fake/model.pt", voice="default", sample_rate=44100)
         chunks = list(tts.synthesize("Test"))
         assert len(chunks) > 0

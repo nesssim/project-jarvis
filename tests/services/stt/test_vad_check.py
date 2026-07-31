@@ -46,7 +46,7 @@ def _make_request(body: bytes) -> Request:
         "http_version": "1.1",
     }
     request = Request(scope)
-    request._body = body  # noqa: SLF001
+    request._body = body
     return request
 
 
@@ -85,15 +85,13 @@ def _wav_body(pcm: bytes) -> bytes:
 
 
 class TestVadCheckRoute:
-    async def test_empty_body_returns_400(self, vad_check_env) -> None:  # noqa: ARG002
+    async def test_empty_body_returns_400(self, vad_check_env) -> None:
         with pytest.raises(HTTPException) as exc:
             await vc_module.check_vad(_make_request(b""))
         assert exc.value.status_code == 400
         assert "No audio data provided" in exc.value.detail
 
-    async def test_short_body_returns_zeroed_response(
-        self, vad_check_env  # noqa: ARG002
-    ) -> None:
+    async def test_short_body_returns_zeroed_response(self, vad_check_env) -> None:
         result = await vc_module.check_vad(_make_request(b"\x00\x00" * 79))
         assert result.is_speech is False
         assert result.probability == 0.0
@@ -135,28 +133,28 @@ class TestVadCheckRoute:
 
 
 class TestVadCheckSessions:
-    async def test_session_id_is_reused(self, vad_check_env) -> None:  # noqa: ARG002
+    async def test_session_id_is_reused(self, vad_check_env) -> None:
         await vc_module.check_vad(_make_request(b"\x00\x00" * 256), "s1")
         await vc_module.check_vad(_make_request(b"\x00\x00" * 256), "s1")
         assert vc_module.VADProcessor.call_count == 1
 
     async def test_different_sessions_create_separate_instances(
-        self, vad_check_env  # noqa: ARG002
+        self, vad_check_env
     ) -> None:
         await vc_module.check_vad(_make_request(b"\x00\x00" * 256), "a")
         await vc_module.check_vad(_make_request(b"\x00\x00" * 256), "b")
         assert vc_module.VADProcessor.call_count == 2
 
-    async def test_max_instances_reached_returns_400(
-        self, vad_check_env  # noqa: ARG002
-    ) -> None:
+    async def test_max_instances_reached_returns_400(self, vad_check_env) -> None:
         vc_module.load_settings.return_value.stt.vad.max_instances = 1
         await vc_module.check_vad(_make_request(b"\x00\x00" * 256), "a")
-        with pytest.raises(VADError, match="Maximum VAD sessions reached"):
+        with pytest.raises(HTTPException) as exc_info:
             await vc_module.check_vad(_make_request(b"\x00\x00" * 256), "b")
+        assert exc_info.value.status_code == 400
+        assert "Maximum VAD sessions reached" in exc_info.value.detail
 
     async def test_ttl_eviction_recreates_instance(
-        self, vad_check_env, monkeypatch: pytest.MonkeyPatch  # noqa: ARG002
+        self, vad_check_env, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         timestamps = iter([1000.0, 1000.0, 1301.0, 1301.0])
         monkeypatch.setattr(

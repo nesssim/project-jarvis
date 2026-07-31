@@ -31,7 +31,7 @@ def client(config: LLMConfig) -> OllamaClient:
 
 def test_build_payload_defaults(client: OllamaClient) -> None:
     messages = [{"role": "user", "content": "hi"}]
-    payload = client._build_payload(messages, stream=True)  # noqa: SLF001
+    payload = client._build_payload(messages, stream=True)
     assert payload["model"] == "test-model"
     assert payload["stream"] is True
     assert payload["messages"] == messages
@@ -42,7 +42,7 @@ def test_build_payload_defaults(client: OllamaClient) -> None:
 
 def test_build_payload_overrides(client: OllamaClient) -> None:
     messages = [{"role": "user", "content": "hi"}]
-    payload = client._build_payload(  # noqa: SLF001
+    payload = client._build_payload(
         messages, stream=False, max_tokens=999, temperature=0.1
     )
     assert payload["options"]["num_predict"] == 999
@@ -71,7 +71,7 @@ async def test_handle_stream_yields_tokens(client: OllamaClient) -> None:
     mock_response = AsyncMock(spec=httpx.Response)
     mock_response.aiter_lines.return_value = AsyncIteratorMock(chunks)
 
-    tokens = [t async for t in client._handle_stream(mock_response)]  # noqa: SLF001
+    tokens = [t async for t in client._handle_stream(mock_response)]
     assert tokens == ["Hello", " world"]
 
 
@@ -82,7 +82,7 @@ async def test_handle_stream_raises_on_error(client: OllamaClient) -> None:
     mock_response.aiter_lines.return_value = AsyncIteratorMock(chunks)
 
     with pytest.raises(OllamaError, match="model not loaded"):
-        async for _ in client._handle_stream(mock_response):  # noqa: SLF001
+        async for _ in client._handle_stream(mock_response):
             pass  # pragma: no cover
 
 

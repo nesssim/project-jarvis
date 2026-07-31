@@ -30,9 +30,7 @@ async def store_turn(request: Request, body: StoreTurnRequest) -> dict:
 
 
 @router.get("/turns/{session_id}")
-async def get_recent_turns(
-    request: Request, session_id: str, limit: int = 20
-) -> dict:
+async def get_recent_turns(request: Request, session_id: str, limit: int = 20) -> dict:
     store: MemoryStore = request.app.state.memory_store
     turns = await store.get_recent(session_id, limit)
     return {"turns": turns}

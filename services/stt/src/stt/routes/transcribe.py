@@ -20,7 +20,7 @@ def get_whisper_stt() -> WhisperSTT:
     global _WHISPER_INSTANCE
     if _WHISPER_INSTANCE is None:
         _settings = load_settings()
-        stt_cfg = _settings.stt
+        stt_cfg = _settings.stt.whisper
         _WHISPER_INSTANCE = WhisperSTT(
             model_size=stt_cfg.model_size,
             device=stt_cfg.device,

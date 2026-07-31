@@ -22,10 +22,7 @@ def _import_piper_download():
 
 class PiperTTS:
     def __init__(
-        self,
-        model_path: str,
-        voice: str = "default",
-        sample_rate: int = 22050,
+        self, model_path: str, voice: str = "default", sample_rate: int = 22050
     ) -> None:
         self._model_path = model_path
         self._voice = voice
@@ -65,8 +62,5 @@ class PiperTTS:
 
         chunks = self._chunk_text(text)
         for chunk in chunks:
-            audio_bytes, _ = self._voice_obj.synthesize(
-                chunk,
-                length_scale=1.0,
-            )
+            audio_bytes, _ = self._voice_obj.synthesize(chunk, length_scale=1.0)
             yield audio_bytes

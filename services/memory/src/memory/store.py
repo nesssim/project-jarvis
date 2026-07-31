@@ -10,19 +10,114 @@ from shared.logging import get_logger
 logger = get_logger("memory.store")
 
 STOP_WORDS: set[str] = {
-    "a", "an", "the", "is", "are", "was", "were", "been", "being",
-    "have", "has", "had", "do", "does", "did", "will", "would", "can",
-    "could", "shall", "should", "may", "might", "must", "to", "of",
-    "in", "for", "on", "with", "at", "by", "from", "as", "into",
-    "through", "during", "before", "after", "above", "below", "between",
-    "out", "off", "over", "under", "again", "further", "then", "once",
-    "here", "there", "when", "where", "why", "how", "all", "each",
-    "every", "both", "few", "more", "most", "other", "some", "such",
-    "no", "nor", "not", "only", "own", "same", "so", "than", "too",
-    "very", "just", "about", "up", "down", "it", "its", "i", "me",
-    "my", "we", "our", "you", "your", "he", "him", "his", "she",
-    "her", "they", "them", "their", "what", "which", "who", "this",
-    "that", "these", "those", "am", "be", "having", "doing",
+    "a",
+    "an",
+    "the",
+    "is",
+    "are",
+    "was",
+    "were",
+    "been",
+    "being",
+    "have",
+    "has",
+    "had",
+    "do",
+    "does",
+    "did",
+    "will",
+    "would",
+    "can",
+    "could",
+    "shall",
+    "should",
+    "may",
+    "might",
+    "must",
+    "to",
+    "of",
+    "in",
+    "for",
+    "on",
+    "with",
+    "at",
+    "by",
+    "from",
+    "as",
+    "into",
+    "through",
+    "during",
+    "before",
+    "after",
+    "above",
+    "below",
+    "between",
+    "out",
+    "off",
+    "over",
+    "under",
+    "again",
+    "further",
+    "then",
+    "once",
+    "here",
+    "there",
+    "when",
+    "where",
+    "why",
+    "how",
+    "all",
+    "each",
+    "every",
+    "both",
+    "few",
+    "more",
+    "most",
+    "other",
+    "some",
+    "such",
+    "no",
+    "nor",
+    "not",
+    "only",
+    "own",
+    "same",
+    "so",
+    "than",
+    "too",
+    "very",
+    "just",
+    "about",
+    "up",
+    "down",
+    "it",
+    "its",
+    "i",
+    "me",
+    "my",
+    "we",
+    "our",
+    "you",
+    "your",
+    "he",
+    "him",
+    "his",
+    "she",
+    "her",
+    "they",
+    "them",
+    "their",
+    "what",
+    "which",
+    "who",
+    "this",
+    "that",
+    "these",
+    "those",
+    "am",
+    "be",
+    "having",
+    "doing",
 }
 
 
@@ -36,17 +131,11 @@ def _turns_key(session_id: str) -> str:
 
 
 class MemoryStore:
-    def __init__(
-        self,
-        redis_client: redis.Redis | None,
-        max_turns: int = 20,
-    ) -> None:
+    def __init__(self, redis_client: redis.Redis | None, max_turns: int = 20) -> None:
         self.redis = redis_client
         self.max_turns = max_turns
 
-    async def store_turn(
-        self, session_id: str, role: str, content: str
-    ) -> str:
+    async def store_turn(self, session_id: str, role: str, content: str) -> str:
         turn_id = uuid.uuid4().hex[:16]
         timestamp = time.time()
         turn = {
@@ -60,14 +149,10 @@ class MemoryStore:
             await self.redis.lpush(key, json.dumps(turn))
             await self.redis.ltrim(key, 0, self.max_turns - 1)
 
-        logger.info(
-            "stored turn", session_id=session_id, role=role, turn_id=turn_id
-        )
+        logger.info("stored turn", session_id=session_id, role=role, turn_id=turn_id)
         return turn_id
 
-    async def get_recent(
-        self, session_id: str, limit: int = 20
-    ) -> list[dict]:
+    async def get_recent(self, session_id: str, limit: int = 20) -> list[dict]:
         if not self.redis:
             return []
         key = _turns_key(session_id)

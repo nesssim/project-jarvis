@@ -20,22 +20,14 @@ class MemoryClient:
 
     async def _get_client(self) -> httpx.AsyncClient:
         if self._http is None:
-            self._http = httpx.AsyncClient(
-                base_url=self.base_url, timeout=self.timeout
-            )
+            self._http = httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout)
         return self._http
 
-    async def store_turn(
-        self, session_id: str, role: str, content: str
-    ) -> str:
+    async def store_turn(self, session_id: str, role: str, content: str) -> str:
         client = await self._get_client()
         resp = await client.post(
             "/api/memory/turns",
-            json={
-                "session_id": session_id,
-                "role": role,
-                "content": content,
-            },
+            json={"session_id": session_id, "role": role, "content": content},
         )
         if resp.status_code >= 400:
             raise MemoryClientError(
@@ -49,8 +41,7 @@ class MemoryClient:
     ) -> list[dict[str, Any]]:
         client = await self._get_client()
         resp = await client.get(
-            f"/api/memory/turns/{session_id}",
-            params={"limit": limit},
+            f"/api/memory/turns/{session_id}", params={"limit": limit}
         )
         if resp.status_code >= 400:
             raise MemoryClientError(
@@ -65,16 +56,10 @@ class MemoryClient:
         client = await self._get_client()
         resp = await client.post(
             "/api/memory/recall",
-            json={
-                "session_id": session_id,
-                "query": query,
-                "max_results": max_results,
-            },
+            json={"session_id": session_id, "query": query, "max_results": max_results},
         )
         if resp.status_code >= 400:
-            raise MemoryClientError(
-                f"recall failed: {resp.status_code} {resp.text}"
-            )
+            raise MemoryClientError(f"recall failed: {resp.status_code} {resp.text}")
         data = resp.json()
         return data.get("memories", [])
 

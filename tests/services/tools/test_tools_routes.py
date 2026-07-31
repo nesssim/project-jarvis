@@ -8,7 +8,9 @@ from tools.registry import ToolRegistry
 
 
 async def _mock_search(query: str, max_results: int = 5) -> dict:
-    return {"results": [{"title": "Mock", "url": "https://mock.com", "snippet": "mock"}]}
+    return {
+        "results": [{"title": "Mock", "url": "https://mock.com", "snippet": "mock"}]
+    }
 
 
 @pytest.fixture
@@ -45,32 +47,24 @@ class TestToolsRoutes:
 
     def test_execute_not_found(self, test_client):
         resp = test_client.post(
-            "/api/tools/execute",
-            json={"tool": "nonexistent", "params": {}},
+            "/api/tools/execute", json={"tool": "nonexistent", "params": {}}
         )
         assert resp.status_code == 404
 
     def test_execute_validation(self, test_client):
-        resp = test_client.post(
-            "/api/tools/execute",
-            json={"tool": "", "params": {}},
-        )
+        resp = test_client.post("/api/tools/execute", json={"tool": "", "params": {}})
         assert resp.status_code == 422
 
     def test_search_endpoint(self, test_client):
         with patch("tools.search.web_search") as mock_search:
             mock_search.return_value = {"results": []}
             resp = test_client.post(
-                "/api/tools/search",
-                json={"query": "test", "max_results": 3},
+                "/api/tools/search", json={"query": "test", "max_results": 3}
             )
         assert resp.status_code == 200
 
     def test_search_validation(self, test_client):
-        resp = test_client.post(
-            "/api/tools/search",
-            json={"query": ""},
-        )
+        resp = test_client.post("/api/tools/search", json={"query": ""})
         assert resp.status_code == 422
 
     def test_health(self, test_client):

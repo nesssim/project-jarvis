@@ -5,13 +5,12 @@ import time
 from collections.abc import AsyncIterator
 
 import pytest
-from shared.config import LLMConfig, Settings
-
 from orchestrator.clients.llm import BaseLLMClient
 from orchestrator.core.pipeline import RealtimePipeline
 from orchestrator.core.prompt import PromptManager
 from orchestrator.core.state_machine import FSMState
-from shared.state import AUDIO_INPUT_STATES
+from shared.config import LLMConfig, Settings
+
 from tests.conftest import make_audio_chunk
 
 
@@ -20,7 +19,12 @@ def _stub_settings(**overrides: object) -> Settings:
         "redis": {"url": "redis://:test@localhost:6379/0"},
         "logging": {"level": "DEBUG", "format": "text"},
         "listening": {"barge_in_jitter_ms": 50},
-        "audio": {"sample_rate": 16000, "channels": 1, "sample_width": 2, "chunk_size_ms": 100},
+        "audio": {
+            "sample_rate": 16000,
+            "channels": 1,
+            "sample_width": 2,
+            "chunk_size_ms": 100,
+        },
     }
     base.update(overrides)
     return Settings(**base)
@@ -28,6 +32,7 @@ def _stub_settings(**overrides: object) -> Settings:
 
 def _dummy_wav(duration_ms: int = 200) -> bytes:
     import math
+
     sample_rate = 16000
     num_samples = sample_rate * duration_ms // 1000
     header = bytearray()
@@ -79,10 +84,7 @@ class _MockTTS:
 
 class _MockLLM(BaseLLMClient):
     def __init__(
-        self,
-        config: LLMConfig | None = None,
-        ttft_ms: float = 150,
-        tbt_ms: float = 30,
+        self, config: LLMConfig | None = None, ttft_ms: float = 150, tbt_ms: float = 30
     ) -> None:
         super().__init__(config or LLMConfig())
         self._ttft = ttft_ms / 1000.0
@@ -165,8 +167,7 @@ async def test_e2e_voice_to_voice_under_budget() -> None:
     llm = _MockLLM(ttft_ms=80, tbt_ms=15)
     settings = _stub_settings()
     prompt = PromptManager(
-        prompts_dir="config/prompts",
-        max_context_tokens=settings.llm.max_context_tokens,
+        prompts_dir="config/prompts", max_context_tokens=settings.llm.max_context_tokens
     )
 
     events: list[tuple[str, float]] = []
@@ -212,8 +213,7 @@ async def test_barge_in_response_time() -> None:
     llm = _MockLLM(ttft_ms=50, tbt_ms=10)
     settings = _stub_settings()
     prompt = PromptManager(
-        prompts_dir="config/prompts",
-        max_context_tokens=settings.llm.max_context_tokens,
+        prompts_dir="config/prompts", max_context_tokens=settings.llm.max_context_tokens
     )
 
     pipeline = RealtimePipeline(

@@ -28,10 +28,7 @@ def test_cli_sends_message_and_streams(tmp_path):
 
     with (
         patch.object(sys, "argv", ["jarvis-chat", "hello"]),
-        patch(
-            "orchestrator.cli.httpx.Client",
-            return_value=mock_client,
-        ),
+        patch("orchestrator.cli.httpx.Client", return_value=mock_client),
     ):
         main()
 

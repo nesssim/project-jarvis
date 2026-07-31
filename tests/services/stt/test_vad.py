@@ -93,7 +93,7 @@ class TestVADProcessorValidation:
 
 
 class TestVADProcessorFlow:
-    def test_speech_start_end_sequence(self, fake_onnx) -> None:  # noqa: ARG002
+    def test_speech_start_end_sequence(self, fake_onnx) -> None:
         vad = VADProcessor(silence_duration_ms=100)
 
         assert vad.process(ZERO_FRAME).type == VADEventType.SPEECH_START
@@ -130,7 +130,7 @@ class TestVADProcessorFlow:
         assert event is not None
         assert event.type == VADEventType.SPEECH_START
 
-    def test_reset_clears_state(self, fake_onnx) -> None:  # noqa: ARG002
+    def test_reset_clears_state(self, fake_onnx) -> None:
         vad = VADProcessor(silence_duration_ms=100)
         vad.process(ZERO_FRAME)
         assert vad.is_speaking

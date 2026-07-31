@@ -66,9 +66,7 @@ class ToolRegistry:
         except ToolExecutionError:
             raise
         except Exception as e:
-            raise ToolExecutionError(
-                f"Tool '{name}' execution failed: {e}"
-            ) from e
+            raise ToolExecutionError(f"Tool '{name}' execution failed: {e}") from e
 
     def get_tool(self, name: str) -> ToolInfo | None:
         return self._tools.get(name)

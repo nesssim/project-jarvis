@@ -5,20 +5,12 @@ import time
 from collections.abc import Awaitable, Callable
 
 from shared.logging import get_logger
-from shared.state import (
-    AUDIO_INPUT_STATES,
-    INTERRUPTIBLE_STATES,
-    TRANSITIONS,
-    FSMState,
-)
+from shared.state import AUDIO_INPUT_STATES, INTERRUPTIBLE_STATES, TRANSITIONS, FSMState
 
 
 class TransitionError(Exception):
     def __init__(
-        self,
-        source: FSMState,
-        target: FSMState,
-        valid_targets: list[FSMState],
+        self, source: FSMState, target: FSMState, valid_targets: list[FSMState]
     ) -> None:
         self.source = source
         self.target = target
@@ -37,7 +29,9 @@ class StateMachine:
     def __init__(
         self,
         initial_state: FSMState = FSMState.IDLE,
-        on_transition: Callable[[FSMState, FSMState, str], Awaitable[None]] | None = None,
+        on_transition: (
+            Callable[[FSMState, FSMState, str], Awaitable[None]] | None
+        ) = None,
     ) -> None:
         self._state = initial_state
         self._lock = asyncio.Lock()
@@ -67,29 +61,37 @@ class StateMachine:
     def consecutive_errors(self) -> int:
         return self._consecutive_errors
 
-    def on_enter(self, state: FSMState) -> Callable[[Callable[[], Awaitable[None]]], Callable[[], Awaitable[None]]]:
-        def decorator(func: Callable[[], Awaitable[None]]) -> Callable[[], Awaitable[None]]:
+    def on_enter(
+        self, state: FSMState
+    ) -> Callable[[Callable[[], Awaitable[None]]], Callable[[], Awaitable[None]]]:
+        def decorator(
+            func: Callable[[], Awaitable[None]],
+        ) -> Callable[[], Awaitable[None]]:
             if state not in self._enter_callbacks:
                 self._enter_callbacks[state] = []
             self._enter_callbacks[state].append(func)
             return func
+
         return decorator
 
-    def on_exit(self, state: FSMState) -> Callable[[Callable[[], Awaitable[None]]], Callable[[], Awaitable[None]]]:
-        def decorator(func: Callable[[], Awaitable[None]]) -> Callable[[], Awaitable[None]]:
+    def on_exit(
+        self, state: FSMState
+    ) -> Callable[[Callable[[], Awaitable[None]]], Callable[[], Awaitable[None]]]:
+        def decorator(
+            func: Callable[[], Awaitable[None]],
+        ) -> Callable[[], Awaitable[None]]:
             if state not in self._exit_callbacks:
                 self._exit_callbacks[state] = []
             self._exit_callbacks[state].append(func)
             return func
+
         return decorator
 
     async def transition(self, target: FSMState, reason: str = "") -> bool:
         async with self._lock:
             source = self._state
             if (source, target) not in TRANSITIONS:
-                valid = [
-                    k[1] for k in TRANSITIONS if k[0] == source
-                ]
+                valid = [k[1] for k in TRANSITIONS if k[0] == source]
                 raise TransitionError(source, target, valid)
             await self._fire_exit_callbacks(source)
             self._state = target
@@ -142,7 +144,9 @@ class StateMachine:
             try:
                 await cb()
             except Exception:
-                logger.warning("enter callback failed", state=state.value, exc_info=True)
+                logger.warning(
+                    "enter callback failed", state=state.value, exc_info=True
+                )
 
     async def _fire_exit_callbacks(self, state: FSMState) -> None:
         for cb in self._exit_callbacks.get(state, []):

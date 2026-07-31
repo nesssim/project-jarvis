@@ -32,14 +32,10 @@ TRANSITIONS: dict[tuple[FSMState, FSMState], str] = {
     (FSMState.ERROR, FSMState.IDLE): "recovery_timeout",
 }
 
-AUDIO_INPUT_STATES: frozenset[FSMState] = frozenset({
-    FSMState.IDLE,
-    FSMState.LISTENING,
-    FSMState.INTERRUPTED,
-})
+AUDIO_INPUT_STATES: frozenset[FSMState] = frozenset(
+    {FSMState.IDLE, FSMState.LISTENING, FSMState.INTERRUPTED}
+)
 
-INTERRUPTIBLE_STATES: frozenset[FSMState] = frozenset({
-    FSMState.SPEAKING,
-    FSMState.PROCESSING,
-})
-
+INTERRUPTIBLE_STATES: frozenset[FSMState] = frozenset(
+    {FSMState.SPEAKING, FSMState.PROCESSING}
+)

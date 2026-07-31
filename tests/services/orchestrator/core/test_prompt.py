@@ -7,6 +7,7 @@ from orchestrator.core.prompt import ConversationBuffer, PromptManager
 
 # --- PromptManager existing tests (unchanged) ---
 
+
 @pytest.fixture
 def prompts_dir(tmp_path: Path) -> Path:
     d = tmp_path / "prompts"
@@ -91,6 +92,7 @@ def test_version_constant(pm: PromptManager) -> None:
 
 # --- ConversationBuffer tests ---
 
+
 class TestConversationBuffer:
     def test_buffer_add_turn(self) -> None:
         buf = ConversationBuffer(max_context_tokens=4096)
@@ -158,13 +160,14 @@ class TestConversationBuffer:
     def test_token_estimate_reasonable(self) -> None:
         buf = ConversationBuffer()
         text = "hello world this is a test " * 20
-        estimated = buf._estimate_tokens(text)  # noqa: SLF001
+        estimated = buf._estimate_tokens(text)
         actual_tokens = len(text.split())
         assert estimated >= actual_tokens
         assert estimated <= actual_tokens * 3
 
 
 # --- PromptManager integration tests ---
+
 
 class TestPromptManagerConversation:
     def test_prompt_manager_add_turn_and_build_messages(
@@ -180,9 +183,7 @@ class TestPromptManagerConversation:
         assert msgs[1] == {"role": "user", "content": "hello"}
         assert msgs[2] == {"role": "assistant", "content": "hi!"}
 
-    def test_prompt_manager_clear_history(
-        self, prompts_dir: Path
-    ) -> None:
+    def test_prompt_manager_clear_history(self, prompts_dir: Path) -> None:
         (prompts_dir / "v1_system.md").write_text("You are a helpful assistant.")
         pm = PromptManager(prompts_dir=str(prompts_dir))
         pm.add_user_turn("hello")
@@ -191,9 +192,7 @@ class TestPromptManagerConversation:
         assert len(msgs) == 1
         assert msgs[0]["role"] == "system"
 
-    def test_prompt_manager_integration_full_cycle(
-        self, prompts_dir: Path
-    ) -> None:
+    def test_prompt_manager_integration_full_cycle(self, prompts_dir: Path) -> None:
         (prompts_dir / "v1_system.md").write_text("System prompt")
         pm = PromptManager(prompts_dir=str(prompts_dir))
 
@@ -207,9 +206,7 @@ class TestPromptManagerConversation:
         assert len(msgs_after) == 3
         assert msgs_after[2]["content"] == "4"
 
-    def test_prompt_manager_history_in_render(
-        self, prompts_dir: Path
-    ) -> None:
+    def test_prompt_manager_history_in_render(self, prompts_dir: Path) -> None:
         (prompts_dir / "v1_system.md").write_text("History:\n{history}")
         pm = PromptManager(prompts_dir=str(prompts_dir))
         pm.add_user_turn("hello")
@@ -221,13 +218,9 @@ class TestPromptManagerConversation:
     def test_prompt_manager_max_context_tokens_from_settings(
         self, prompts_dir: Path
     ) -> None:
-        pm = PromptManager(
-            prompts_dir=str(prompts_dir), max_context_tokens=100
-        )
+        pm = PromptManager(prompts_dir=str(prompts_dir), max_context_tokens=100)
         assert pm.buffer.max_context_tokens == 100
 
-    def test_prompt_manager_buffer_property(
-        self, prompts_dir: Path
-    ) -> None:
+    def test_prompt_manager_buffer_property(self, prompts_dir: Path) -> None:
         pm = PromptManager(prompts_dir=str(prompts_dir))
         assert isinstance(pm.buffer, ConversationBuffer)

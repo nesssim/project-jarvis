@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import pathlib
 import urllib.request
+from typing import Any
+
 from shared.logging import get_logger
 
 logger = get_logger("orchestrator.wake_word")
@@ -24,7 +26,7 @@ class WakeWordDetector:
         sensitivity: float = 0.5,
     ) -> None:
         self._sensitivity = sensitivity
-        self._model = None
+        self._model: Any = None
         self._model_path = pathlib.Path(model_path)
 
     def _ensure_model(self) -> None:
@@ -36,14 +38,12 @@ class WakeWordDetector:
             raise ImportError(
                 "openWakeWord not installed. "
                 "Add 'openwakeword>=0.4.0' to your dependencies."
-            )
+            ) from None
 
         if not self._model_path.exists():
             self._download_model()
 
-        self._model = openwakeword.Model(
-            wakeword_models=[str(self._model_path)]
-        )
+        self._model = openwakeword.Model(wakeword_models=[str(self._model_path)])
         logger.info("wake word model loaded", path=str(self._model_path))
 
     def _download_model(self) -> None:
@@ -56,16 +56,19 @@ class WakeWordDetector:
         """Check if the wake word is detected in the audio chunk.
 
         Args:
-            chunk: Raw PCM 16-bit mono audio at 16kHz
+            audio_chunk: Raw PCM 16-bit mono audio at 16kHz
 
         Returns:
             True if wake word detected above sensitivity threshold
+
         """
         import numpy as np
 
         self._ensure_model()
 
-        samples = np.frombuffer(audio_chunk, dtype=np.int16).astype(np.float32) / 32768.0
+        samples = (
+            np.frombuffer(audio_chunk, dtype=np.int16).astype(np.float32) / 32768.0
+        )
         prediction = self._model.predict(samples)
 
         max_score = max(prediction.values()) if prediction else 0.0

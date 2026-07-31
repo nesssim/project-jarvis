@@ -14,25 +14,11 @@ def client(tmp_path):
     pm.render = MagicMock(return_value="You are a helpful assistant.")
     with (
         patch("orchestrator.main.settings") as mock_settings,
-        patch(
-            "orchestrator.main.create_redis_clients",
-            return_value=(None, None),
-        ),
-        patch(
-            "orchestrator.main.create_llm_client",
-            return_value=llm,
-        ),
-        patch(
-            "orchestrator.main.PromptManager", return_value=pm
-        ),
-        patch(
-            "orchestrator.main.MemoryClient",
-            return_value=AsyncMock(),
-        ),
-        patch(
-            "orchestrator.main.ToolsClient",
-            return_value=AsyncMock(),
-        ),
+        patch("orchestrator.main.create_redis_clients", return_value=(None, None)),
+        patch("orchestrator.main.create_llm_client", return_value=llm),
+        patch("orchestrator.main.PromptManager", return_value=pm),
+        patch("orchestrator.main.MemoryClient", return_value=AsyncMock()),
+        patch("orchestrator.main.ToolsClient", return_value=AsyncMock()),
     ):
         mock_settings.rate_limiting.default = "100/minute"
         mock_settings.auth.enabled = False
@@ -76,7 +62,11 @@ class MockToolsClient:
 
     async def execute(self, tool, params=None):
         self.execute_calls.append((tool, params))
-        return {"results": [{"title": "Result", "url": "https://example.com", "snippet": "Snippet"}]}
+        return {
+            "results": [
+                {"title": "Result", "url": "https://example.com", "snippet": "Snippet"}
+            ]
+        }
 
     async def list_tools(self):
         return []
@@ -167,7 +157,9 @@ def test_chat_with_custom_session_id(client, mock_prompt):
     llm = MockLLM()
     _inject_mocks(client, llm, mock_prompt)
 
-    response = client.post("/chat", json={"message": "hello", "session_id": "my-test-session"})
+    response = client.post(
+        "/chat", json={"message": "hello", "session_id": "my-test-session"}
+    )
     assert response.headers["X-Session-ID"] == "my-test-session"
 
 

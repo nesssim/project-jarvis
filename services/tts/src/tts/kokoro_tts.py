@@ -23,8 +23,7 @@ class KokoroTTS:
     def _load_pipeline(self) -> None:
         kokoro_mod = _import_kokoro()
         self._pipeline = kokoro_mod.KokoroPipeline(
-            model="kokoro-v0_19.pth",
-            voice=self._voice,
+            model="kokoro-v0_19.pth", voice=self._voice
         )
 
     @property

@@ -8,6 +8,8 @@ import pytest
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
+from tests.conftest import make_audio_chunk as _make_audio_chunk
+
 
 @pytest.fixture
 def mock_services():
@@ -76,9 +78,6 @@ def ws_client(mock_services):
 def _connect(ws_client, api_key="test-secret-key"):
     headers = {"X-API-Key": api_key} if api_key else {}
     return ws_client.websocket_connect("/ws/audio", headers=headers)
-
-
-from tests.conftest import make_audio_chunk as _make_audio_chunk
 
 
 class TestAudioBufferOverflow:
@@ -153,15 +152,20 @@ class TestAudioBufferOverflow:
 class TestOversizedMessage:
     def test_oversized_binary_returns_error(self, ws_client):
         mock_stt = ws_client._transport.app.state.stt_client
-        mock_stt.check_vad = AsyncMock(return_value={
-            "is_speech": True, "probability": 0.8, "silence_duration_ms": 0,
-        })
+        mock_stt.check_vad = AsyncMock(
+            return_value={
+                "is_speech": True,
+                "probability": 0.8,
+                "silence_duration_ms": 0,
+            }
+        )
 
         with _connect(ws_client) as ws:
             ws.receive_json()
             huge = b"\x00" * (11 * 1024 * 1024)
             ws.send_bytes(huge)
             import time
+
             time.sleep(0.2)
 
             for _ in range(10):
@@ -182,6 +186,7 @@ class TestOversizedMessage:
             huge = "x" * 70000
             ws.send_text(huge)
             import time
+
             time.sleep(0.2)
 
             for _ in range(10):
@@ -202,18 +207,23 @@ class TestPipelineBusyReset:
         mock_stt = mock_services["stt"]
 
         async def failing_transcribe(audio_bytes):
-            raise Exception("STT crashed")
+            raise Exception("STT crashed")  # noqa: TRY002
 
         mock_stt.transcribe = failing_transcribe
-        mock_stt.check_vad = AsyncMock(return_value={
-            "is_speech": True, "probability": 0.8, "silence_duration_ms": 0,
-        })
+        mock_stt.check_vad = AsyncMock(
+            return_value={
+                "is_speech": True,
+                "probability": 0.8,
+                "silence_duration_ms": 0,
+            }
+        )
         mock_stt.reset_vad = AsyncMock()
 
         with _connect(ws_client) as ws:
             ws.receive_json()
             ws.send_bytes(_make_audio_chunk(100))
             import time
+
             time.sleep(0.3)
             ws.send_json({"type": "stop"})
             time.sleep(0.3)
@@ -242,9 +252,13 @@ class TestPipelineBusyReset:
             return {"text": "test", "language": "en", "segments": [], "confidence": 0.9}
 
         mock_stt.transcribe = mock_transcribe
-        mock_stt.check_vad = AsyncMock(return_value={
-            "is_speech": True, "probability": 0.8, "silence_duration_ms": 0,
-        })
+        mock_stt.check_vad = AsyncMock(
+            return_value={
+                "is_speech": True,
+                "probability": 0.8,
+                "silence_duration_ms": 0,
+            }
+        )
         mock_stt.reset_vad = AsyncMock()
         mock_tts.synthesize = AsyncMock(side_effect=Exception("TTS crashed"))
 
@@ -252,6 +266,7 @@ class TestPipelineBusyReset:
             ws.receive_json()
             ws.send_bytes(_make_audio_chunk(100))
             import time
+
             time.sleep(0.3)
             ws.send_json({"type": "stop"})
             time.sleep(0.3)
@@ -288,6 +303,7 @@ class TestConnectionLimit:
             assert len(connections) <= 10
         finally:
             from contextlib import suppress
+
             for conn in connections:
                 with suppress(Exception):
                     conn.close()
@@ -299,12 +315,21 @@ class TestStopHandler:
         mock_tts = mock_services["tts"]
 
         async def mock_transcribe(audio_bytes):
-            return {"text": "hello", "language": "en", "segments": [], "confidence": 0.9}
+            return {
+                "text": "hello",
+                "language": "en",
+                "segments": [],
+                "confidence": 0.9,
+            }
 
         mock_stt.transcribe = mock_transcribe
-        mock_stt.check_vad = AsyncMock(return_value={
-            "is_speech": True, "probability": 0.8, "silence_duration_ms": 0,
-        })
+        mock_stt.check_vad = AsyncMock(
+            return_value={
+                "is_speech": True,
+                "probability": 0.8,
+                "silence_duration_ms": 0,
+            }
+        )
         mock_tts.synthesize = AsyncMock(return_value=_make_audio_chunk(200))
 
         tts_complete_received = False
@@ -313,6 +338,7 @@ class TestStopHandler:
             ws.receive_json()
             ws.send_bytes(_make_audio_chunk(100))
             import time
+
             time.sleep(0.5)
             ws.send_json({"type": "stop"})
 

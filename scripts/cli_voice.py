@@ -23,10 +23,16 @@ import httpx
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Turn-based voice CLI for J.A.R.V.I.S.")
-    p.add_argument("--orchestrator", default="http://localhost:8000", help="Orchestrator base URL")
-    p.add_argument("--input", "-i", type=Path, help="Read WAV file instead of recording")
+    p.add_argument(
+        "--orchestrator", default="http://localhost:8000", help="Orchestrator base URL"
+    )
+    p.add_argument(
+        "--input", "-i", type=Path, help="Read WAV file instead of recording"
+    )
     p.add_argument("--output", "-o", type=Path, help="Save response audio to file")
-    p.add_argument("--list-devices", action="store_true", help="List audio devices and exit")
+    p.add_argument(
+        "--list-devices", action="store_true", help="List audio devices and exit"
+    )
     return p
 
 
@@ -38,7 +44,9 @@ def record_from_mic(duration: float = 10.0, sample_rate: int = 16000) -> bytes:
         sys.exit(1)
 
     print(f"Recording {duration}s of audio...")
-    recording = sd.rec(int(duration * sample_rate), samplerate=sample_rate, channels=1, dtype="int16")
+    recording = sd.rec(
+        int(duration * sample_rate), samplerate=sample_rate, channels=1, dtype="int16"
+    )
     sd.wait()
     print("Recording complete.")
 
@@ -70,7 +78,10 @@ def play_audio(data: bytes) -> None:
     try:
         import sounddevice as sd  # type: ignore[import-untyped]
     except ImportError:
-        print("sounddevice not installed. Use --output <file> to save instead.", file=sys.stderr)
+        print(
+            "sounddevice not installed. Use --output <file> to save instead.",
+            file=sys.stderr,
+        )
         return
 
     import io
@@ -90,7 +101,9 @@ def run_pipeline(client: httpx.Client, audio_bytes: bytes) -> tuple[float, bytes
     stage_times: dict[str, float] = {}
 
     t0 = time.perf_counter()
-    resp = client.post("/voice", content=audio_bytes, headers={"Content-Type": "audio/wav"})
+    resp = client.post(
+        "/voice", content=audio_bytes, headers={"Content-Type": "audio/wav"}
+    )
     t1 = time.perf_counter()
     stage_times["total"] = t1 - t0
 
@@ -105,11 +118,15 @@ def run_pipeline(client: httpx.Client, audio_bytes: bytes) -> tuple[float, bytes
     response_text = resp.headers.get("X-Response", "")
     confidence = resp.headers.get("X-Confidence", "0")
 
-    return stage_times["total"], resp.content, {
-        "transcription": transcription,
-        "response_text": response_text,
-        "confidence": confidence,
-    }
+    return (
+        stage_times["total"],
+        resp.content,
+        {
+            "transcription": transcription,
+            "response_text": response_text,
+            "confidence": confidence,
+        },
+    )
 
 
 def list_devices() -> None:
@@ -130,14 +147,10 @@ def main() -> None:
 
     base_url = args.orchestrator.rstrip("/")
 
-    if args.input:
-        audio_bytes = read_wav(args.input)
-    else:
-        audio_bytes = record_from_mic()
+    audio_bytes = read_wav(args.input) if args.input else record_from_mic()
 
     total_time, response_audio, info = run_pipeline(
-        httpx.Client(base_url=base_url, timeout=120.0),
-        audio_bytes,
+        httpx.Client(base_url=base_url, timeout=120.0), audio_bytes
     )
 
     print(f"Transcription: {info['transcription']}")

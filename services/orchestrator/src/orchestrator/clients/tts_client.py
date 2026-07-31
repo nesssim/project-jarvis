@@ -20,22 +20,15 @@ class TTSClient:
 
     async def _get_client(self) -> httpx.AsyncClient:
         if self._http is None:
-            self._http = httpx.AsyncClient(
-                base_url=self.base_url, timeout=self.timeout
-            )
+            self._http = httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout)
         return self._http
 
     async def synthesize(self, text: str) -> bytes:
         """Synthesize text to audio. Returns complete WAV bytes."""
         client = await self._get_client()
-        resp = await client.post(
-            "/synthesize",
-            json={"text": text},
-        )
+        resp = await client.post("/synthesize", json={"text": text})
         if resp.status_code >= 400:
-            raise TTSClientError(
-                f"synthesize failed: {resp.status_code} {resp.text}"
-            )
+            raise TTSClientError(f"synthesize failed: {resp.status_code} {resp.text}")
         return resp.content
 
     async def synthesize_stream(self, text: str) -> AsyncIterator[bytes]:
@@ -59,9 +52,7 @@ class TTSClient:
             pos = 12
             while pos + 8 <= len(audio_bytes):
                 chunk_id = audio_bytes[pos : pos + 4]
-                chunk_size = int.from_bytes(
-                    audio_bytes[pos + 4 : pos + 8], "little"
-                )
+                chunk_size = int.from_bytes(audio_bytes[pos + 4 : pos + 8], "little")
                 if chunk_id == b"data":
                     data_start = pos + 8
                     data_size = chunk_size

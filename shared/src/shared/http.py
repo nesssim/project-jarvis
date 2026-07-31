@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -12,6 +12,7 @@ from slowapi.middleware import (
     sync_check_limits,
 )
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
 
 from shared.config import Settings
 from shared.logging import get_logger
@@ -21,13 +22,16 @@ logger = get_logger("shared.http")
 MAX_BODY_SIZE = 50 * 1024 * 1024  # 50MB
 
 
+def _rate_limit_handler(request: Request, exc: RateLimitExceeded) -> Response:
+    return _rate_limit_exceeded_handler(request, exc)
+
+
 class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         content_length = request.headers.get("content-length")
         if content_length and int(content_length) > MAX_BODY_SIZE:
             return JSONResponse(
-                status_code=413,
-                content={"detail": "Request body too large"},
+                status_code=413, content={"detail": "Request body too large"}
             )
         return await call_next(request)
 
@@ -87,6 +91,6 @@ def setup_rate_limiter(
     middleware_cls: type[SlowAPIMiddleware] | None = None,
 ) -> None:
     app.state.limiter = limiter
-    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_handler)  # type: ignore[arg-type]
     cls = middleware_cls or SafeSlowAPIMiddleware
     app.add_middleware(cls)

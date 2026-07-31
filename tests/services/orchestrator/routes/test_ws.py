@@ -33,8 +33,7 @@ def ws_client():
 class TestWebSocketAuth:
     def test_ws_connect_with_valid_key(self, ws_client):
         with ws_client.websocket_connect(
-            "/ws/audio",
-            headers={"X-API-Key": "test-secret-key"},
+            "/ws/audio", headers={"X-API-Key": "test-secret-key"}
         ) as ws:
             data = ws.receive_json()
             assert data["type"] == "connected"
@@ -48,8 +47,7 @@ class TestWebSocketAuth:
 
     def test_ws_connect_with_wrong_key_returns_denied(self, ws_client):
         with ws_client.websocket_connect(
-            "/ws/audio",
-            headers={"X-API-Key": "wrong-key"},
+            "/ws/audio", headers={"X-API-Key": "wrong-key"}
         ) as ws:
             with pytest.raises(WebSocketDisconnect) as exc:
                 ws.receive_json()

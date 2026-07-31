@@ -87,10 +87,7 @@ class TestFileAudioSource:
 
     @pytest.mark.parametrize(
         "fixture_name,expected_rate",
-        [
-            ("speech_clean_16khz.wav", 16000),
-            ("speech_clean_44khz.wav", 44100),
-        ],
+        [("speech_clean_16khz.wav", 16000), ("speech_clean_44khz.wav", 44100)],
     )
     def test_sample_rate_detection(self, fixture_name, expected_rate):
         source = FileAudioSource(str(FIXTURE_DIR / fixture_name))
@@ -185,11 +182,18 @@ class TestWAVParsing:
 
     def test_reject_unsupported_format(self):
         data = (
-            b"RIFF" + struct.pack("<I", 100) + b"WAVE"
-            b"fmt " + struct.pack("<I", 16) + struct.pack("<H", 3)
-            + struct.pack("<H", 1) + struct.pack("<I", 16000)
-            + struct.pack("<I", 32000) + struct.pack("<H", 2)
-            + struct.pack("<H", 16) + b"data" + struct.pack("<I", 0)
+            b"RIFF"
+            + struct.pack("<I", 100)
+            + b"WAVEfmt "
+            + struct.pack("<I", 16)
+            + struct.pack("<H", 3)
+            + struct.pack("<H", 1)
+            + struct.pack("<I", 16000)
+            + struct.pack("<I", 32000)
+            + struct.pack("<H", 2)
+            + struct.pack("<H", 16)
+            + b"data"
+            + struct.pack("<I", 0)
         )
         with pytest.raises(InvalidWAVError, match="PCM"):
             parse_wav_header(data)

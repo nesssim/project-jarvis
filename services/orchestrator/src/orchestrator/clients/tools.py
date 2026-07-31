@@ -20,33 +20,24 @@ class ToolsClient:
 
     async def _get_client(self) -> httpx.AsyncClient:
         if self._http is None:
-            self._http = httpx.AsyncClient(
-                base_url=self.base_url, timeout=self.timeout
-            )
+            self._http = httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout)
         return self._http
 
     async def list_tools(self) -> list[dict[str, Any]]:
         client = await self._get_client()
         resp = await client.get("/api/tools/list")
         if resp.status_code >= 400:
-            raise ToolsClientError(
-                f"list_tools failed: {resp.status_code} {resp.text}"
-            )
+            raise ToolsClientError(f"list_tools failed: {resp.status_code} {resp.text}")
         data = resp.json()
         return data.get("tools", [])
 
-    async def execute(
-        self, tool: str, params: dict[str, Any] | None = None
-    ) -> Any:
+    async def execute(self, tool: str, params: dict[str, Any] | None = None) -> Any:
         client = await self._get_client()
         resp = await client.post(
-            "/api/tools/execute",
-            json={"tool": tool, "params": params or {}},
+            "/api/tools/execute", json={"tool": tool, "params": params or {}}
         )
         if resp.status_code >= 400:
-            raise ToolsClientError(
-                f"execute failed: {resp.status_code} {resp.text}"
-            )
+            raise ToolsClientError(f"execute failed: {resp.status_code} {resp.text}")
         data = resp.json()
         return data.get("result")
 

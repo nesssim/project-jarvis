@@ -39,7 +39,7 @@ class _StatefulVAD:
         self._call_count = 0
 
     async def check_vad(
-        self, _audio_chunk: bytes, session_id: str | None = None  # noqa: ARG002
+        self, _audio_chunk: bytes, session_id: str | None = None
     ) -> dict:
         if self.speech_pattern is not None:
             idx = min(self._call_count, len(self.speech_pattern) - 1)
@@ -56,7 +56,7 @@ class _StatefulVAD:
     async def transcribe(self, _audio_bytes: bytes) -> dict:
         return {"text": "hello world", "confidence": 0.95, "language": "en"}
 
-    async def reset_vad(self, session_id: str | None = None) -> None:  # noqa: ARG002
+    async def reset_vad(self, session_id: str | None = None) -> None:
         self._call_count = 0
 
     async def close(self) -> None:
@@ -77,9 +77,9 @@ class _MockLLM:
     async def generate(
         self,
         _messages: list[dict[str, str]],
-        stream: bool = True,  # noqa: ARG002
-        max_tokens: int | None = None,  # noqa: ARG002
-        temperature: float | None = None,  # noqa: ARG002
+        stream: bool = True,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
     ):
         for token in self.tokens:
             yield token
@@ -184,7 +184,7 @@ def _receive_ws(ws, timeout: float = 3.0) -> dict | None:
     timeout / disconnect.
     """
     portal = ws.portal
-    rx = ws._send_rx  # noqa: SLF001
+    rx = ws._send_rx
     try:
         return portal.call(asyncio.wait_for, rx.receive(), timeout)
     except Exception:

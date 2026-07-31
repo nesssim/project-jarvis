@@ -4,6 +4,7 @@ import pathlib
 import urllib.request
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any
 
 import numpy as np
 from shared.logging import get_logger
@@ -64,7 +65,7 @@ class VADProcessor:
         self.silence_duration_ms = silence_duration_ms
         self.sample_rate = sample_rate
 
-        self._model: object | None = None
+        self._model: Any = None
         self._input_name: str | None = None
         self._sr_name: str | None = None
 
@@ -160,12 +161,8 @@ class VADProcessor:
 
         # Initialize LSTM state on first call
         if not self._h:
-            self._h = [
-                np.zeros((2, 1, 64), dtype=np.float32)
-            ]
-            self._c = [
-                np.zeros((2, 1, 64), dtype=np.float32)
-            ]
+            self._h = [np.zeros((2, 1, 64), dtype=np.float32)]
+            self._c = [np.zeros((2, 1, 64), dtype=np.float32)]
 
         sr = np.array(self.sample_rate, dtype=np.int64)
 
@@ -214,9 +211,7 @@ class VADProcessor:
                     )
             elif self._is_speaking:
                 self._silence_samples += len(frame)
-                silence_ms = (
-                    self._silence_samples / self.sample_rate * 1000
-                )
+                silence_ms = self._silence_samples / self.sample_rate * 1000
                 if silence_ms >= self.silence_duration_ms:
                     self._is_speaking = False
                     logger.debug(

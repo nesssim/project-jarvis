@@ -31,7 +31,16 @@ async def test_streaming_tokens():
 
     chunker = SentenceChunker(min_chars=1)
     sentences = []
-    for token in ["The", " weather", " is", " nice", " today.", " Let's", " go", " out."]:
+    for token in [
+        "The",
+        " weather",
+        " is",
+        " nice",
+        " today.",
+        " Let's",
+        " go",
+        " out.",
+    ]:
         async for s in chunker.add_token(token):
             sentences.append(s)
     assert len(sentences) == 2

@@ -25,9 +25,7 @@ class ConversationBuffer:
         self._turns.append({"role": role, "content": content})
         self._truncate()
 
-    def get_messages(
-        self, system_prompt: str | None = None
-    ) -> list[dict[str, str]]:
+    def get_messages(self, system_prompt: str | None = None) -> list[dict[str, str]]:
         messages: list[dict[str, str]] = []
         if system_prompt is not None:
             messages.append({"role": "system", "content": system_prompt})
@@ -59,9 +57,7 @@ class PromptManager:
     VERSION = "v1_system"
 
     def __init__(
-        self,
-        prompts_dir: str | Path = "config/prompts",
-        max_context_tokens: int = 4096,
+        self, prompts_dir: str | Path = "config/prompts", max_context_tokens: int = 4096
     ) -> None:
         self.prompts_dir = Path(prompts_dir)
         self._cache: dict[str, str] = {}

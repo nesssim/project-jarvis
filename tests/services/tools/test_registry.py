@@ -5,7 +5,9 @@ from tools.registry import ToolExecutionError, ToolNotFoundError, ToolRegistry
 
 
 async def _dummy_handler(query: str, max_results: int = 5) -> dict:
-    return {"results": [{"title": "test", "url": "https://example.com", "snippet": "test"}]}
+    return {
+        "results": [{"title": "test", "url": "https://example.com", "snippet": "test"}]
+    }
 
 
 async def _failing_handler() -> None:
@@ -16,11 +18,16 @@ async def _failing_handler() -> None:
 @pytest.fixture
 def registry():
     r = ToolRegistry()
-    r.register("web_search", "Search the web", _dummy_handler, {
-        "type": "object",
-        "properties": {"query": {"type": "string"}},
-        "required": ["query"],
-    })
+    r.register(
+        "web_search",
+        "Search the web",
+        _dummy_handler,
+        {
+            "type": "object",
+            "properties": {"query": {"type": "string"}},
+            "required": ["query"],
+        },
+    )
     return r
 
 

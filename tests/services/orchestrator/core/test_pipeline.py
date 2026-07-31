@@ -5,6 +5,8 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from shared.state import FSMState
 
+from tests.conftest import make_audio_chunk as _make_audio_chunk
+
 
 def _make_mock_settings() -> MagicMock:
     settings = MagicMock()
@@ -19,13 +21,11 @@ def _make_mock_settings() -> MagicMock:
     return settings
 
 
-from tests.conftest import make_audio_chunk as _make_audio_chunk
-
-
 def _llm_gen(tokens):
     async def gen(*args, **kwargs):
         for t in tokens:
             yield t
+
     return gen
 
 
@@ -33,7 +33,9 @@ def _llm_gen(tokens):
 def mock_clients():
     stt = AsyncMock()
     stt.transcribe = AsyncMock(return_value={"text": "test", "confidence": 0.9})
-    stt.check_vad = AsyncMock(return_value={"is_speech": True, "probability": 0.8, "silence_duration_ms": 0})
+    stt.check_vad = AsyncMock(
+        return_value={"is_speech": True, "probability": 0.8, "silence_duration_ms": 0}
+    )
     stt.reset_vad = AsyncMock()
 
     tts = AsyncMock()

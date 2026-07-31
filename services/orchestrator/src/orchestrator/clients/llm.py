@@ -82,7 +82,10 @@ class GroqClient(BaseLLMClient):
         async with client.stream("POST", "/chat/completions", json=payload) as resp:
             if resp.status_code >= 400:
                 error_text = await resp.aread()
-                raise LLMError(f"Groq API error: {resp.status_code} {error_text}")
+                raise LLMError(
+                    f"Groq API error: {resp.status_code} "
+                    f"{error_text.decode(errors='replace')}"
+                )
 
             async for line in resp.aiter_lines():
                 if not line.startswith("data: "):
@@ -172,7 +175,7 @@ class OllamaClient(BaseLLMClient):
                 async for token in self._try_generate(payload):
                     yield token
                 return
-            except (httpx.ConnectError, httpx.TimeoutException) as e:  # noqa: PERF203
+            except (httpx.ConnectError, httpx.TimeoutException) as e:
                 if attempt < attempts - 1:
                     await asyncio.sleep(2**attempt)
                     continue

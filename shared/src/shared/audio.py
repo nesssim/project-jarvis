@@ -41,19 +41,13 @@ class AudioFormat:
 
 def parse_wav_header(data: bytes) -> AudioFormat:
     if len(data) < 44:
-        raise InvalidWAVError(
-            f"WAV header too short: {len(data)} bytes (minimum 44)"
-        )
+        raise InvalidWAVError(f"WAV header too short: {len(data)} bytes (minimum 44)")
 
     if data[:4] != b"RIFF":
-        raise InvalidWAVError(
-            f"Not a RIFF file: expected 'RIFF', got {data[:4]!r}"
-        )
+        raise InvalidWAVError(f"Not a RIFF file: expected 'RIFF', got {data[:4]!r}")
 
     if data[8:12] != b"WAVE":
-        raise InvalidWAVError(
-            f"Not a WAVE file: expected 'WAVE', got {data[8:12]!r}"
-        )
+        raise InvalidWAVError(f"Not a WAVE file: expected 'WAVE', got {data[8:12]!r}")
 
     offset = 12
     fmt_found = False
@@ -96,41 +90,39 @@ def parse_wav_header(data: bytes) -> AudioFormat:
 
 class AudioSource(ABC):
     @abstractmethod
-    def read(self, chunk_size: int = 4096) -> Iterator[bytes]:
-        ...
+    def read(self, chunk_size: int = 4096) -> Iterator[bytes]: ...
 
     @abstractmethod
-    def reset(self) -> None:
-        ...
+    def reset(self) -> None: ...
 
     @abstractmethod
-    def close(self) -> None:
-        ...
+    def close(self) -> None: ...
 
     def __enter__(self) -> AudioSource:
+        """Enter the context manager."""
         return self
 
     def __exit__(self, *args: object) -> None:
+        """Exit the context manager and close the source."""
         self.close()
 
 
 class AudioSink(ABC):
     @abstractmethod
-    def write(self, data: bytes) -> None:
-        ...
+    def write(self, data: bytes) -> None: ...
 
     @abstractmethod
-    def reset(self) -> None:
-        ...
+    def reset(self) -> None: ...
 
     @abstractmethod
-    def close(self) -> None:
-        ...
+    def close(self) -> None: ...
 
     def __enter__(self) -> AudioSink:
+        """Enter the context manager."""
         return self
 
     def __exit__(self, *args: object) -> None:
+        """Exit the context manager and close the sink."""
         self.close()
 
 
@@ -233,10 +225,7 @@ class NullAudioSink(AudioSink):
 
 class MicrophoneAudioSource(AudioSource):
     def __init__(
-        self,
-        sample_rate: int = 16000,
-        channels: int = 1,
-        device: int | None = None,
+        self, sample_rate: int = 16000, channels: int = 1, device: int | None = None
     ) -> None:
         self._sample_rate = sample_rate
         self._channels = channels
@@ -251,7 +240,9 @@ class MicrophoneAudioSource(AudioSource):
     def channels(self) -> int:
         return self._channels
 
-    def read(self, chunk_size: int = 4096, duration_sec: float | None = None) -> Iterator[bytes]:
+    def read(
+        self, chunk_size: int = 4096, duration_sec: float | None = None
+    ) -> Iterator[bytes]:
         import sounddevice as sd  # type: ignore[import-untyped]
 
         frames: int | None = None
@@ -277,10 +268,7 @@ class MicrophoneAudioSource(AudioSource):
 
 class SpeakerAudioSink(AudioSink):
     def __init__(
-        self,
-        sample_rate: int = 16000,
-        channels: int = 1,
-        device: int | None = None,
+        self, sample_rate: int = 16000, channels: int = 1, device: int | None = None
     ) -> None:
         self._sample_rate = sample_rate
         self._channels = channels
@@ -301,4 +289,5 @@ class SpeakerAudioSink(AudioSink):
 
     def close(self) -> None:
         import sounddevice as sd
+
         sd.stop()

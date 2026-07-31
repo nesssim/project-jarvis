@@ -4,6 +4,7 @@ import asyncio
 import json
 import time
 import uuid
+from contextlib import suppress
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from shared.logging import get_logger
@@ -39,27 +40,20 @@ async def _send_json(ws: WebSocket, data: dict) -> None:
         logger.debug("failed to send json (client may be gone)")
 
 
-async def _send_audio_chunk(
-    ws: WebSocket, chunk: bytes, is_final: bool
-) -> None:
+async def _send_audio_chunk(ws: WebSocket, chunk: bytes, is_final: bool) -> None:
     try:
         await ws.send_bytes(chunk)
-        await _send_json(ws, {
-            "type": "audio.chunk_sent",
-            "bytes": len(chunk),
-            "is_final": is_final,
-        })
+        await _send_json(
+            ws, {"type": "audio.chunk_sent", "bytes": len(chunk), "is_final": is_final}
+        )
     except Exception:
         logger.debug("failed to send audio (client may be gone)")
 
 
-async def _audio_sender(
-    ws: WebSocket,
-    pipeline: RealtimePipeline,
-) -> None:
+async def _audio_sender(ws: WebSocket, pipeline: RealtimePipeline) -> None:
     try:
         while True:
-            chunk = await pipeline._tts_output_queue.get()
+            chunk = await pipeline.tts_output_queue.get()
             if chunk is None:
                 break
             await _send_audio_chunk(ws, chunk.data, chunk.is_final)
@@ -67,10 +61,7 @@ async def _audio_sender(
         logger.debug("audio sender task exited")
 
 
-async def _listening_timeout(
-    pipeline: RealtimePipeline,
-    timeout_seconds: int,
-) -> None:
+async def _listening_timeout(pipeline: RealtimePipeline, timeout_seconds: int) -> None:
     await asyncio.sleep(timeout_seconds)
     if pipeline.fsm.state == FSMState.LISTENING:
         await pipeline.handle_timeout()
@@ -85,10 +76,7 @@ async def audio_stream(websocket: WebSocket):
 
         api_key = websocket.headers.get(settings.auth.api_key_header, "")
         if settings.auth.enabled and api_key != settings.auth.api_key:
-            logger.warning(
-                "ws auth rejected",
-                header=settings.auth.api_key_header,
-            )
+            logger.warning("ws auth rejected", header=settings.auth.api_key_header)
             await websocket.close(code=4001)
             return
 
@@ -101,10 +89,7 @@ async def audio_stream(websocket: WebSocket):
         prompt_mgr = websocket.app.state.prompt_manager
 
         async def event_callback(msg_type: str, payload: dict) -> None:
-            await _send_json(websocket, {
-                "type": msg_type,
-                **payload,
-            })
+            await _send_json(websocket, {"type": msg_type, **payload})
 
         pipeline = RealtimePipeline(
             stt_client=stt,
@@ -120,10 +105,7 @@ async def audio_stream(websocket: WebSocket):
         audio_sender_task: asyncio.Task | None = None
 
         try:
-            await _send_json(websocket, {
-                "type": "connected",
-                "session_id": session_id,
-            })
+            await _send_json(websocket, {"type": "connected", "session_id": session_id})
             logger.info("ws connected", session_id=session_id)
 
             _vad_session: str | None = None
@@ -134,29 +116,33 @@ async def audio_stream(websocket: WebSocket):
                 if now - last_heartbeat_time >= HEARTBEAT_INTERVAL:
                     last_heartbeat_time = now
                     try:
-                        await _send_json(websocket, {
-                            "type": "heartbeat",
-                            "timestamp": now,
-                        })
+                        await _send_json(
+                            websocket, {"type": "heartbeat", "timestamp": now}
+                        )
                     except Exception:
                         break
 
                 try:
                     message = await asyncio.wait_for(
-                        websocket.receive(),
-                        timeout=HEARTBEAT_INTERVAL,
+                        websocket.receive(), timeout=HEARTBEAT_INTERVAL
                     )
 
-                    if "bytes" in message and len(message["bytes"]) > MAX_WS_BINARY_SIZE:
+                    if (
+                        "bytes" in message
+                        and len(message["bytes"]) > MAX_WS_BINARY_SIZE
+                    ):
                         logger.warning(
                             "binary message too large",
                             session_id=session_id,
                             bytes=len(message["bytes"]),
                         )
-                        await _send_json(websocket, {
-                            "type": "error",
-                            "message": f"Binary message exceeds {MAX_WS_BINARY_SIZE} bytes",
-                        })
+                        await _send_json(
+                            websocket,
+                            {
+                                "type": "error",
+                                "message": f"Binary message exceeds {MAX_WS_BINARY_SIZE} bytes",
+                            },
+                        )
                         continue
 
                     if "text" in message and len(message["text"]) > MAX_WS_TEXT_SIZE:
@@ -165,16 +151,21 @@ async def audio_stream(websocket: WebSocket):
                             session_id=session_id,
                             bytes=len(message["text"]),
                         )
-                        await _send_json(websocket, {
-                            "type": "error",
-                            "message": f"Text message exceeds {MAX_WS_TEXT_SIZE} bytes",
-                        })
+                        await _send_json(
+                            websocket,
+                            {
+                                "type": "error",
+                                "message": f"Text message exceeds {MAX_WS_TEXT_SIZE} bytes",
+                            },
+                        )
                         continue
 
                 except asyncio.TimeoutError:
-                    if (pipeline.fsm.state == FSMState.LISTENING
+                    if (
+                        pipeline.fsm.state == FSMState.LISTENING
                         and listening_timer_task is not None
-                        and listening_timer_task.done()):
+                        and listening_timer_task.done()
+                    ):
                         await pipeline.handle_timeout()
                     continue
                 except WebSocketDisconnect:
@@ -200,10 +191,10 @@ async def audio_stream(websocket: WebSocket):
 
                     elif cmd == "stop":
                         if pipeline.fsm.state == FSMState.LISTENING:
-                            await _send_json(websocket, {
-                                "type": "vad.speech_end",
-                                "silence_duration_ms": 0,
-                            })
+                            await _send_json(
+                                websocket,
+                                {"type": "vad.speech_end", "silence_duration_ms": 0},
+                            )
                             if listening_timer_task and not listening_timer_task.done():
                                 listening_timer_task.cancel()
                             await pipeline.handle_speech_end()
@@ -226,9 +217,13 @@ async def audio_stream(websocket: WebSocket):
 
                     if state == FSMState.IDLE:
                         try:
-                            vad_result = await stt.check_vad(audio_chunk, session_id=session_id)
+                            vad_result = await stt.check_vad(
+                                audio_chunk, session_id=session_id
+                            )
                         except Exception as e:
-                            logger.warning("vad check failed", session_id=session_id, error=str(e))
+                            logger.warning(
+                                "vad check failed", session_id=session_id, error=str(e)
+                            )
                             continue
 
                         if vad_result.get("is_speech", False):
@@ -236,25 +231,29 @@ async def audio_stream(websocket: WebSocket):
                             await pipeline.fsm.transition(
                                 FSMState.LISTENING, reason="vad_speech_start"
                             )
-                            await _send_json(websocket, {
-                                "type": "vad.speech_start",
-                                "timestamp": time.time(),
-                            })
-                            if listening_timer_task is not None and not listening_timer_task.done():
-                                listening_timer_task.cancel()
-                                try:
-                                    await listening_timer_task
-                                except asyncio.CancelledError:
-                                    pass
-                            listening_timer_task = asyncio.create_task(
-                                _listening_timeout(pipeline, settings.listening.timeout_seconds)
+                            await _send_json(
+                                websocket,
+                                {"type": "vad.speech_start", "timestamp": time.time()},
                             )
-                            if audio_sender_task is not None and not audio_sender_task.done():
+                            if (
+                                listening_timer_task is not None
+                                and not listening_timer_task.done()
+                            ):
+                                listening_timer_task.cancel()
+                                with suppress(asyncio.CancelledError):
+                                    await listening_timer_task
+                            listening_timer_task = asyncio.create_task(
+                                _listening_timeout(
+                                    pipeline, settings.listening.timeout_seconds
+                                )
+                            )
+                            if (
+                                audio_sender_task is not None
+                                and not audio_sender_task.done()
+                            ):
                                 audio_sender_task.cancel()
-                                try:
+                                with suppress(asyncio.CancelledError):
                                     await audio_sender_task
-                                except asyncio.CancelledError:
-                                    pass
                             audio_sender_task = asyncio.create_task(
                                 _audio_sender(websocket, pipeline)
                             )
@@ -263,45 +262,62 @@ async def audio_stream(websocket: WebSocket):
                         await pipeline.push_audio(audio_chunk)
 
                         try:
-                            vad_result = await stt.check_vad(audio_chunk, session_id=session_id)
+                            vad_result = await stt.check_vad(
+                                audio_chunk, session_id=session_id
+                            )
                         except Exception as e:
-                            logger.warning("vad check failed", session_id=session_id, error=str(e))
+                            logger.warning(
+                                "vad check failed", session_id=session_id, error=str(e)
+                            )
                             continue
 
                         if not vad_result.get("is_speech", True):
                             silence_ms = vad_result.get("silence_duration_ms", 0)
                             if silence_ms >= settings.listening.silence_threshold_ms:
-                                await _send_json(websocket, {
-                                    "type": "vad.speech_end",
-                                    "silence_duration_ms": silence_ms,
-                                })
-                                if listening_timer_task and not listening_timer_task.done():
+                                await _send_json(
+                                    websocket,
+                                    {
+                                        "type": "vad.speech_end",
+                                        "silence_duration_ms": silence_ms,
+                                    },
+                                )
+                                if (
+                                    listening_timer_task
+                                    and not listening_timer_task.done()
+                                ):
                                     listening_timer_task.cancel()
                                 await pipeline.handle_speech_end()
 
                     elif state in (FSMState.PROCESSING, FSMState.SPEAKING):
                         if settings.listening.barge_in_enabled:
                             try:
-                                vad_result = await stt.check_vad(audio_chunk, session_id=session_id)
+                                vad_result = await stt.check_vad(
+                                    audio_chunk, session_id=session_id
+                                )
                             except Exception:
-                                logger.warning("barge-in vad check failed", session_id=session_id)
+                                logger.warning(
+                                    "barge-in vad check failed", session_id=session_id
+                                )
                                 continue
 
                             if vad_result.get("is_speech", False):
                                 await pipeline.handle_barge_in()
                                 await _send_json(websocket, {"type": "interrupted"})
                                 await pipeline.push_audio(audio_chunk)
-                                await _send_json(websocket, {
-                                    "type": "vad.speech_start",
-                                    "timestamp": time.time(),
-                                })
+                                await _send_json(
+                                    websocket,
+                                    {
+                                        "type": "vad.speech_start",
+                                        "timestamp": time.time(),
+                                    },
+                                )
 
                     elif state == FSMState.INTERRUPTED:
                         await pipeline.push_audio(audio_chunk)
 
                     elif state == FSMState.TOOL_WAITING:
                         if settings.listening.barge_in_enabled:
-                            pipeline.push_audio(audio_chunk)
+                            await pipeline.push_audio(audio_chunk)
 
                     elif state == FSMState.ERROR:
                         pass
@@ -319,7 +335,9 @@ async def audio_stream(websocket: WebSocket):
         except Exception:
             logger.exception("ws error", session_id=session_id)
             try:
-                await _send_json(websocket, {"type": "error", "message": "Internal server error"})
+                await _send_json(
+                    websocket, {"type": "error", "message": "Internal server error"}
+                )
             except Exception:
                 logger.warning("failed to send error message", session_id=session_id)
         finally:
@@ -331,4 +349,6 @@ async def audio_stream(websocket: WebSocket):
             try:
                 await stt.reset_vad(session_id=session_id)
             except Exception:
-                logger.debug("failed to reset vad during cleanup", session_id=session_id)
+                logger.debug(
+                    "failed to reset vad during cleanup", session_id=session_id
+                )

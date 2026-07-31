@@ -30,9 +30,15 @@ def voice_pipeline():
 
         class MockLLM:
             def __init__(self):
-                self.config = type("obj", (object,), {"generation": type("obj", (object,), {"max_tokens": 2048})})()
+                self.config = type(
+                    "obj",
+                    (object,),
+                    {"generation": type("obj", (object,), {"max_tokens": 2048})},
+                )()
 
-            async def generate(self, messages, stream=True, max_tokens=None, temperature=None):
+            async def generate(
+                self, messages, stream=True, max_tokens=None, temperature=None
+            ):
                 yield "The weather is sunny and 72 degrees."
 
         mock_create_llm.return_value = MockLLM()
@@ -42,7 +48,12 @@ def voice_pipeline():
 
         class MockSTT:
             async def transcribe(self, audio_bytes):
-                return {"text": "what is the weather", "language": "en", "segments": [], "confidence": 0.95}
+                return {
+                    "text": "what is the weather",
+                    "language": "en",
+                    "segments": [],
+                    "confidence": 0.95,
+                }
 
             async def close(self):
                 pass

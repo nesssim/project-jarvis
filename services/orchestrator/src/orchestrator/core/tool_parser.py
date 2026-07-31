@@ -11,6 +11,7 @@ class ToolCall:
         self.params = params
 
     def __repr__(self) -> str:
+        """Return a debug-friendly representation of the tool call."""
         return f"ToolCall(tool={self.tool!r}, params={self.params!r})"
 
 
@@ -20,10 +21,7 @@ def parse_tool_calls(response_text: str) -> list[ToolCall]:
         query = match.group(1).strip()
         if query:
             calls.append(
-                ToolCall(
-                    tool="web_search",
-                    params={"query": query, "max_results": 5},
-                )
+                ToolCall(tool="web_search", params={"query": query, "max_results": 5})
             )
     return calls
 

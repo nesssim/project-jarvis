@@ -4,12 +4,7 @@ import asyncio
 
 import pytest
 from orchestrator.core.state_machine import StateMachine, TransitionError
-from shared.state import (
-    AUDIO_INPUT_STATES,
-    INTERRUPTIBLE_STATES,
-    TRANSITIONS,
-    FSMState,
-)
+from shared.state import AUDIO_INPUT_STATES, INTERRUPTIBLE_STATES, TRANSITIONS, FSMState
 
 
 class TestFSMStateEnum:

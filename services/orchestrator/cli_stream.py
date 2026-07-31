@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Streaming voice client for J.A.R.V.I.S. (Phase 3 FSM-compatible)
+"""Streaming voice client for J.A.R.V.I.S. (Phase 3 FSM-compatible).
 
 Connects to the orchestrator's WebSocket streaming audio endpoint,
 captures microphone audio, streams it to the server, and displays
@@ -60,11 +60,11 @@ class StreamingClient:
         self._session_id = ""
 
     async def run(self) -> None:
-        """Main run loop: connect and process audio."""
+        """Run the main connect-and-process loop."""
         try:
             import websockets  # type: ignore[import-untyped]
         except ImportError:
-            print(  # noqa: T201
+            print(
                 "Error: 'websockets' package required.\n"
                 "Install: pip install websockets"
             )
@@ -78,9 +78,7 @@ class StreamingClient:
 
         try:
             async with websockets.connect(
-                self.url,
-                additional_headers=headers,
-                max_size=2**25,  # 32MB max message
+                self.url, additional_headers=headers, max_size=2**25  # 32MB max message
             ) as ws:
                 self._running = True
 
@@ -90,26 +88,19 @@ class StreamingClient:
                     data = json.loads(connected_msg)
                     if data.get("type") == "connected":
                         self._session_id = data["session_id"]
-                        self._print_status(
-                            f"Connected! Session: {self._session_id}"
-                        )
+                        self._print_status(f"Connected! Session: {self._session_id}")
                         self._print_help()
                     elif data.get("type") == "error":
                         self._print_error(data.get("message", "Unknown error"))
                         return
 
                 # Start audio capture and message processing concurrently
-                capture_task = asyncio.create_task(
-                    self._capture_audio(ws)
-                )
-                receive_task = asyncio.create_task(
-                    self._receive_messages(ws)
-                )
+                capture_task = asyncio.create_task(self._capture_audio(ws))
+                receive_task = asyncio.create_task(self._receive_messages(ws))
 
                 # Wait for either task to complete
                 done, pending = await asyncio.wait(
-                    [capture_task, receive_task],
-                    return_when=asyncio.FIRST_COMPLETED,
+                    [capture_task, receive_task], return_when=asyncio.FIRST_COMPLETED
                 )
 
                 # Cancel remaining tasks
@@ -138,25 +129,20 @@ class StreamingClient:
             import sounddevice as sd  # type: ignore[import-untyped]
         except ImportError:
             self._print_error(
-                "sounddevice not installed.\n"
-                "Install: pip install sounddevice"
+                "sounddevice not installed.\nInstall: pip install sounddevice"
             )
             return
 
         self._print_status("Recording... (speak now)")
 
         def audio_callback(
-            indata: bytes,
-            frames: int,
-            _time_info: object,
-            _status: object,
+            indata: bytes, frames: int, _time_info: object, _status: object
         ) -> None:
-            """Callback for sounddevice InputStream."""
+            """Handle audio from the sounddevice InputStream."""
             if self._running:
                 # Schedule send in the event loop
                 asyncio.run_coroutine_threadsafe(
-                    self._send_audio(ws, indata.tobytes()),
-                    asyncio.get_event_loop(),
+                    self._send_audio(ws, indata.tobytes()), asyncio.get_event_loop()
                 )
 
         stream = sd.InputStream(
@@ -180,7 +166,7 @@ class StreamingClient:
             await ws.send(chunk)
             self.stats.total_audio_sent += len(chunk)
         except Exception as e:
-            print(f"  Send error: {e}", file=sys.stderr)  # noqa: T201
+            print(f"  Send error: {e}", file=sys.stderr)
 
     async def _receive_messages(self, ws: Any) -> None:
         """Receive and process messages from the server."""
@@ -224,9 +210,7 @@ class StreamingClient:
         elif msg_type == "vad.speech_end":
             silence_ms = data.get("silence_duration_ms", 0)
             self._clear_line()
-            self._print_status(
-                f"Silence detected ({silence_ms}ms). Processing..."
-            )
+            self._print_status(f"Silence detected ({silence_ms}ms). Processing...")
 
         elif msg_type == "transcript.final":
             text = data.get("text", "")
@@ -242,7 +226,7 @@ class StreamingClient:
         elif msg_type == "llm.complete":
             text = data.get("text", "")
             self.stats.responses.append(text)
-            print()  # noqa: T201
+            print()
             self._print_status("🔊 Generating speech...")
 
         elif msg_type == "tts.start":
@@ -278,27 +262,27 @@ class StreamingClient:
             samples = np.frombuffer(audio_chunk, dtype=np.int16)
             sd.play(samples, samplerate=SAMPLE_RATE)
         except Exception as e:
-            print(f"  Playback error: {e}", file=sys.stderr)  # noqa: T201
+            print(f"  Playback error: {e}", file=sys.stderr)
 
     def _print_status(self, msg: str) -> None:
         """Print a status message."""
-        print(f"\n  {msg}")  # noqa: T201
+        print(f"\n  {msg}")
 
     def _print_error(self, msg: str) -> None:
         """Print an error message."""
-        print(f"\n  ❌ Error: {msg}", file=sys.stderr)  # noqa: T201
+        print(f"\n  ❌ Error: {msg}", file=sys.stderr)
 
     def _print_inline(self, msg: str, end: str = "") -> None:
         """Print inline without newline."""
-        print(msg, end=end)  # noqa: T201
+        print(msg, end=end)
 
     def _clear_line(self) -> None:
         """Clear the current terminal line."""
-        print("\r\033[K", end="")  # noqa: T201
+        print("\r\033[K", end="")
 
     def _print_help(self) -> None:
         """Print usage hints."""
-        print(  # noqa: T201
+        print(
             "\n  Commands:"
             "\n    Speak naturally — audio is streamed continuously"
             "\n    Press Ctrl+C to exit"
@@ -307,42 +291,28 @@ class StreamingClient:
     def _print_stats(self) -> None:
         """Print session statistics."""
         elapsed = time.time() - self.stats.start_time
-        print("\n" + "=" * 40)  # noqa: T201
-        print("  Session Statistics:")  # noqa: T201
-        print(f"    Duration: {elapsed:.1f}s")  # noqa: T201
-        print(  # noqa: T201
-            f"    Audio sent: {self.stats.total_audio_sent / 1024:.1f} KB"
-        )
-        print(  # noqa: T201
-            f"    Partials: {self.stats.partials_received}"
-        )
-        print(f"    LLM tokens: {self.stats.tokens_received}")  # noqa: T201
-        print(  # noqa: T201
-            f"    Audio chunks: {self.stats.audio_chunks_received}"
-        )
-        print(f"    Responses: {len(self.stats.responses)}")  # noqa: T201
-        print("=" * 40)  # noqa: T201
+        print("\n" + "=" * 40)
+        print("  Session Statistics:")
+        print(f"    Duration: {elapsed:.1f}s")
+        print(f"    Audio sent: {self.stats.total_audio_sent / 1024:.1f} KB")
+        print(f"    Partials: {self.stats.partials_received}")
+        print(f"    LLM tokens: {self.stats.tokens_received}")
+        print(f"    Audio chunks: {self.stats.audio_chunks_received}")
+        print(f"    Responses: {len(self.stats.responses)}")
+        print("=" * 40)
 
 
 def main() -> None:
     """Entry point."""
-    parser = argparse.ArgumentParser(
-        description="J.A.R.V.I.S. Streaming Voice Client"
-    )
+    parser = argparse.ArgumentParser(description="J.A.R.V.I.S. Streaming Voice Client")
     parser.add_argument(
         "--url",
         default="ws://localhost:8000/ws/audio",
         help="WebSocket URL (default: ws://localhost:8000/ws/audio)",
     )
+    parser.add_argument("--api-key", help="API key for authentication")
     parser.add_argument(
-        "--api-key",
-        help="API key for authentication",
-    )
-    parser.add_argument(
-        "--device",
-        type=int,
-        default=None,
-        help="Sounddevice input device index",
+        "--device", type=int, default=None, help="Sounddevice input device index"
     )
     parser.add_argument(
         "--no-vad",
@@ -363,7 +333,7 @@ def main() -> None:
     except KeyboardInterrupt:
         client._print_status("\nExiting...")
     except Exception as e:
-        print(f"\nFatal error: {e}", file=sys.stderr)  # noqa: T201
+        print(f"\nFatal error: {e}", file=sys.stderr)
         sys.exit(1)
 
 

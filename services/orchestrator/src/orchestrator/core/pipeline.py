@@ -71,9 +71,7 @@ def _extract_pcm_from_wav(wav_bytes: bytes) -> bytes:
     pos = 12
     while pos + 8 <= len(wav_bytes):
         chunk_id = wav_bytes[pos : pos + 4]
-        chunk_size = int.from_bytes(
-            wav_bytes[pos + 4 : pos + 8], "little"
-        )
+        chunk_size = int.from_bytes(wav_bytes[pos + 4 : pos + 8], "little")
         if chunk_id == b"data":
             return wav_bytes[pos + 8 : pos + 8 + chunk_size]
         pos += 8 + chunk_size
@@ -122,6 +120,10 @@ class RealtimePipeline:
     def fsm(self) -> StateMachine:
         return self._fsm
 
+    @property
+    def tts_output_queue(self) -> asyncio.Queue[AudioChunk | None]:
+        return self._tts_output_queue
+
     def set_session(self, session_id: str) -> None:
         self._session_id = session_id
 
@@ -135,9 +137,9 @@ class RealtimePipeline:
         return True
 
     async def handle_speech_end(self) -> None:
-        await self._emit(MessageType.TRANSCRIPT_FINAL.value, {
-            "text": "...", "confidence": 0.0,
-        })
+        await self._emit(
+            MessageType.TRANSCRIPT_FINAL.value, {"text": "...", "confidence": 0.0}
+        )
 
         await self._fsm.transition(FSMState.PROCESSING, reason="vad_speech_end")
 
@@ -165,8 +167,7 @@ class RealtimePipeline:
         if self._tts_task and not self._tts_task.done():
             try:
                 await asyncio.wait_for(
-                    asyncio.shield(self._tts_task),
-                    timeout=jitter_ms / 1000,
+                    asyncio.shield(self._tts_task), timeout=jitter_ms / 1000
                 )
             except asyncio.TimeoutError:
                 self._tts_task.cancel()
@@ -191,13 +192,17 @@ class RealtimePipeline:
 
     async def handle_timeout(self) -> None:
         if self._fsm.state == FSMState.ERROR and not self._fsm.should_auto_recover():
-            await self._emit("error", {"message": "Too many consecutive errors, reconnecting required"})
+            await self._emit(
+                "error",
+                {"message": "Too many consecutive errors, reconnecting required"},
+            )
             return
         if self._fsm.state != FSMState.LISTENING:
             return
-        await self._emit(MessageType.LISTENING_TIMEOUT.value, {
-            "timeout_seconds": self._settings.listening.timeout_seconds,
-        })
+        await self._emit(
+            MessageType.LISTENING_TIMEOUT.value,
+            {"timeout_seconds": self._settings.listening.timeout_seconds},
+        )
         self._audio_buffer.clear()
         await self._fsm.force_state(FSMState.IDLE, reason="listening_timeout")
 
@@ -220,10 +225,10 @@ class RealtimePipeline:
         try:
             result = await self._stt.transcribe(audio_data)
             text = result.get("text", "").strip()
-            await self._emit(MessageType.TRANSCRIPT_FINAL.value, {
-                "text": text,
-                "confidence": result.get("confidence", 0.0),
-            })
+            await self._emit(
+                MessageType.TRANSCRIPT_FINAL.value,
+                {"text": text, "confidence": result.get("confidence", 0.0)},
+            )
             return result
         except Exception as e:
             await self._fsm.transition(FSMState.ERROR, reason="stt_failure")
@@ -264,9 +269,7 @@ class RealtimePipeline:
 
         if self._fsm.state == FSMState.SPEAKING:
             await self._fsm.transition(FSMState.IDLE, reason="tts_complete")
-            await self._emit(MessageType.TTS_COMPLETE.value, {
-                "bytes": 0,
-            })
+            await self._emit(MessageType.TTS_COMPLETE.value, {"bytes": 0})
 
         await self._tts_output_queue.put(None)
 
@@ -290,10 +293,7 @@ class RealtimePipeline:
 
         audio_cfg = self._settings.audio
         frame_size = audio_cfg.channels * audio_cfg.sample_width
-        chunk_bytes = max(
-            frame_size,
-            audio_cfg.sample_rate * frame_size * 200 // 1000,
-        )
+        chunk_bytes = max(frame_size, audio_cfg.sample_rate * frame_size * 200 // 1000)
 
         offset = 0
         while offset < len(raw_pcm):
@@ -304,10 +304,10 @@ class RealtimePipeline:
             chunk_data = raw_pcm[offset:end]
             is_final = end >= len(raw_pcm)
 
-            await self._emit(MessageType.TTS_AUDIO_CHUNK.value, {
-                "bytes": len(chunk_data),
-                "is_final": is_final,
-            })
+            await self._emit(
+                MessageType.TTS_AUDIO_CHUNK.value,
+                {"bytes": len(chunk_data), "is_final": is_final},
+            )
 
             await self._tts_output_queue.put(
                 AudioChunk(data=chunk_data, is_final=is_final)
@@ -315,4 +315,3 @@ class RealtimePipeline:
 
             offset = end
             await asyncio.sleep(0)
-

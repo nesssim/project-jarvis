@@ -83,9 +83,7 @@ class RealtimeCLI:
 
         try:
             async with websockets.connect(
-                self._ws_url,
-                additional_headers=headers,
-                max_size=2**25,
+                self._ws_url, additional_headers=headers, max_size=2**25
             ) as ws:
                 self._ws = ws
                 self._running = True
@@ -137,10 +135,7 @@ class RealtimeCLI:
         import sounddevice as sd
 
         def callback(
-            outdata: np.ndarray,
-            frames: int,
-            _time_info: object,
-            _status: object,
+            outdata: np.ndarray, frames: int, _time_info: object, _status: object
         ) -> None:
             needed = frames * SAMPLE_WIDTH
             with self._buffer_lock:
@@ -176,40 +171,35 @@ class RealtimeCLI:
         receiver_task = asyncio.create_task(self._receive_messages(ws))
 
         done, pending = await asyncio.wait(
-            [audio_task, stdin_task, receiver_task],
-            return_when=asyncio.FIRST_COMPLETED,
+            [audio_task, stdin_task, receiver_task], return_when=asyncio.FIRST_COMPLETED
         )
 
         for task in pending:
             task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError, Exception):
                 await task
-            except (asyncio.CancelledError, Exception):
-                pass
 
         for task in done:
-                with contextlib.suppress(asyncio.CancelledError, Exception):
-                    exc = task.exception()
-                    if exc:
-                        self._print_error(str(exc))
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                exc = task.exception()
+                if exc:
+                    self._print_error(str(exc))
 
     async def _capture_audio(self, ws: Any) -> None:
         try:
             import sounddevice as sd
         except ImportError:
-            self._print_error("sounddevice not installed.\nInstall: pip install sounddevice")
+            self._print_error(
+                "sounddevice not installed.\nInstall: pip install sounddevice"
+            )
             return
 
         def audio_callback(
-            indata: np.ndarray,
-            frames: int,
-            _time_info: object,
-            _status: object,
+            indata: np.ndarray, frames: int, _time_info: object, _status: object
         ) -> None:
             if self._running:
                 asyncio.run_coroutine_threadsafe(
-                    self._send_audio(ws, indata.tobytes()),
-                    asyncio.get_event_loop(),
+                    self._send_audio(ws, indata.tobytes()), asyncio.get_event_loop()
                 )
 
         stream = sd.InputStream(
@@ -228,10 +218,8 @@ class RealtimeCLI:
     async def _send_audio(self, ws: Any, chunk: bytes) -> None:
         if not chunk:
             return
-        try:
+        with contextlib.suppress(Exception):
             await ws.send(chunk)
-        except Exception:
-            pass
 
     async def _read_stdin(self, ws: Any) -> None:
         loop = asyncio.get_event_loop()
@@ -267,10 +255,8 @@ class RealtimeCLI:
                 )
 
     async def _send_json(self, ws: Any, data: dict) -> None:
-        try:
+        with contextlib.suppress(Exception):
             await ws.send(json.dumps(data))
-        except Exception:
-            pass
 
     async def _receive_messages(self, ws: Any) -> None:
         while self._running:
@@ -383,43 +369,25 @@ class RealtimeCLI:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="J.A.R.V.I.S. Real-time CLI Client"
+    parser = argparse.ArgumentParser(description="J.A.R.V.I.S. Real-time CLI Client")
+    parser.add_argument(
+        "--host", default="localhost", help="Server host (default: localhost)"
     )
     parser.add_argument(
-        "--host",
-        default="localhost",
-        help="Server host (default: localhost)",
+        "--port", type=int, default=8000, help="Server port (default: 8000)"
     )
+    parser.add_argument("--api-key", help="API key for authentication")
     parser.add_argument(
-        "--port",
-        type=int,
-        default=8000,
-        help="Server port (default: 8000)",
-    )
-    parser.add_argument(
-        "--api-key",
-        help="API key for authentication",
-    )
-    parser.add_argument(
-        "--device",
-        type=int,
-        default=None,
-        help="Sounddevice input device index",
+        "--device", type=int, default=None, help="Sounddevice input device index"
     )
     args = parser.parse_args()
 
     client = RealtimeCLI(
-        host=args.host,
-        port=args.port,
-        api_key=args.api_key,
-        device=args.device,
+        host=args.host, port=args.port, api_key=args.api_key, device=args.device
     )
 
-    try:
+    with contextlib.suppress(KeyboardInterrupt):
         asyncio.run(client.run())
-    except KeyboardInterrupt:
-        pass
 
 
 if __name__ == "__main__":

@@ -32,10 +32,10 @@ class BenchmarkResult:
     """Results from a single benchmark iteration."""
 
     iteration: int
-    stt_latency_ms: float = 0.0       # End-of-speech → transcript
-    llm_first_token_ms: float = 0.0   # Transcript → first LLM token
-    tts_first_byte_ms: float = 0.0    # LLM complete → first TTS byte
-    total_latency_ms: float = 0.0     # End-of-speech → last TTS byte
+    stt_latency_ms: float = 0.0  # End-of-speech → transcript
+    llm_first_token_ms: float = 0.0  # Transcript → first LLM token
+    tts_first_byte_ms: float = 0.0  # LLM complete → first TTS byte
+    total_latency_ms: float = 0.0  # End-of-speech → last TTS byte
     transcript: str = ""
     response_text: str = ""
 
@@ -65,11 +65,7 @@ class BenchmarkStats:
         return sorted(values)[int(len(values) * pct / 100)]
 
     def report(self) -> str:
-        lines = [
-            "=" * 60,
-            "  Streaming Latency Benchmark Report",
-            "=" * 60,
-        ]
+        lines = ["=" * 60, "  Streaming Latency Benchmark Report", "=" * 60]
         for name, values in [
             ("STT (EOS → transcript)", self.stt_latency_ms),
             ("LLM (transcript → first token)", self.llm_first_token_ms),
@@ -105,6 +101,7 @@ class StreamingBenchmark:
     def _make_audio(self, duration_ms: int = 100) -> bytes:
         """Generate a synthetic audio chunk."""
         import math
+
         num_samples = SAMPLE_RATE * duration_ms // 1000
         samples = bytearray()
         for i in range(num_samples):
@@ -120,12 +117,19 @@ class StreamingBenchmark:
         class MockSTT:
             async def transcribe(self, audio_bytes):
                 await asyncio.sleep(0.05)  # Simulate STT latency
-                return {"text": "what is the weather today", "language": "en",
-                        "segments": [], "confidence": 0.95}
+                return {
+                    "text": "what is the weather today",
+                    "language": "en",
+                    "segments": [],
+                    "confidence": 0.95,
+                }
 
             async def check_vad(self, audio_chunk):
-                return {"is_speech": False, "probability": 0.1,
-                        "silence_duration_ms": 900}
+                return {
+                    "is_speech": False,
+                    "probability": 0.1,
+                    "silence_duration_ms": 900,
+                }
 
             async def reset_vad(self):
                 pass
@@ -181,25 +185,33 @@ class StreamingBenchmark:
         # Step 4: LLM streaming
         first_token = True
         response_parts = []
-        async for token in llm.generate([{"role": "user", "content": result.transcript}]):
+        async for token in llm.generate(
+            [{"role": "user", "content": result.transcript}]
+        ):
             if first_token:
                 first_token_time = time.monotonic()
                 result.llm_first_token_ms = (first_token_time - transcript_time) * 1000
                 first_token = False
-                self._log(f"  [iter {iteration}] First LLM token: {result.llm_first_token_ms:.1f}ms")
+                self._log(
+                    f"  [iter {iteration}] First LLM token: {result.llm_first_token_ms:.1f}ms"
+                )
             response_parts.append(token)
             await asyncio.sleep(0)
 
         result.response_text = "".join(response_parts)
         llm_complete_time = time.monotonic()
-        self._log(f"  [iter {iteration}] LLM complete: {(llm_complete_time - first_token_time) * 1000:.1f}ms")
+        self._log(
+            f"  [iter {iteration}] LLM complete: {(llm_complete_time - first_token_time) * 1000:.1f}ms"
+        )
 
         # Step 5: TTS
         if result.response_text.strip():
             await tts.synthesize(result.response_text)
             first_tts_byte_time = time.monotonic()
             result.tts_first_byte_ms = (first_tts_byte_time - llm_complete_time) * 1000
-            self._log(f"  [iter {iteration}] First TTS byte: {result.tts_first_byte_ms:.1f}ms")
+            self._log(
+                f"  [iter {iteration}] First TTS byte: {result.tts_first_byte_ms:.1f}ms"
+            )
 
             last_tts_byte_time = time.monotonic()
             result.total_latency_ms = (last_tts_byte_time - eos_time) * 1000
@@ -209,13 +221,13 @@ class StreamingBenchmark:
 
     async def run(self) -> BenchmarkStats:
         """Run all iterations and collect statistics."""
-        print(f"\nRunning {self.iterations} benchmark iterations...")  # noqa: T201
+        print(f"\nRunning {self.iterations} benchmark iterations...")
 
         for i in range(self.iterations):
             result = await self.run_iteration(i + 1)
             self.stats.add(result)
 
-            print(  # noqa: T201
+            print(
                 f"  Iter {i + 1}: "
                 f"STT={result.stt_latency_ms:.0f}ms "
                 f"LLM={result.llm_first_token_ms:.0f}ms "
@@ -229,6 +241,7 @@ class StreamingBenchmark:
 def _make_audio(duration_ms: int) -> bytes:
     """Generate synthetic audio bytes."""
     import math
+
     num_samples = SAMPLE_RATE * duration_ms // 1000
     samples = bytearray()
     for i in range(num_samples):
@@ -242,49 +255,65 @@ def main() -> None:
         description="Streaming latency benchmark for Phase 2.5"
     )
     parser.add_argument(
-        "--iterations", "-n",
+        "--iterations",
+        "-n",
         type=int,
         default=5,
         help="Number of benchmark iterations (default: 5)",
     )
     parser.add_argument(
-        "--verbose", "-v",
+        "--verbose",
+        "-v",
         action="store_true",
         help="Print detailed per-iteration information",
     )
-    parser.add_argument(
-        "--json",
-        action="store_true",
-        help="Output results as JSON",
-    )
+    parser.add_argument("--json", action="store_true", help="Output results as JSON")
     args = parser.parse_args()
 
-    benchmark = StreamingBenchmark(
-        iterations=args.iterations,
-        verbose=args.verbose,
-    )
+    benchmark = StreamingBenchmark(iterations=args.iterations, verbose=args.verbose)
 
     stats = asyncio.run(benchmark.run())
 
     if args.json:
-        print(json.dumps({
-            "stt_latency_ms": {
-                "p50": statistics.median(stats.stt_latency_ms) if stats.stt_latency_ms else 0,
-                "values": stats.stt_latency_ms,
-            },
-            "llm_first_token_ms": {
-                "p50": statistics.median(stats.llm_first_token_ms) if stats.llm_first_token_ms else 0,
-                "values": stats.llm_first_token_ms,
-            },
-            "tts_first_byte_ms": {
-                "p50": statistics.median(stats.tts_first_byte_ms) if stats.tts_first_byte_ms else 0,
-                "values": stats.tts_first_byte_ms,
-            },
-            "total_latency_ms": {
-                "p50": statistics.median(stats.total_latency_ms) if stats.total_latency_ms else 0,
-                "values": stats.total_latency_ms,
-            },
-        }, indent=2))
+        print(
+            json.dumps(
+                {
+                    "stt_latency_ms": {
+                        "p50": (
+                            statistics.median(stats.stt_latency_ms)
+                            if stats.stt_latency_ms
+                            else 0
+                        ),
+                        "values": stats.stt_latency_ms,
+                    },
+                    "llm_first_token_ms": {
+                        "p50": (
+                            statistics.median(stats.llm_first_token_ms)
+                            if stats.llm_first_token_ms
+                            else 0
+                        ),
+                        "values": stats.llm_first_token_ms,
+                    },
+                    "tts_first_byte_ms": {
+                        "p50": (
+                            statistics.median(stats.tts_first_byte_ms)
+                            if stats.tts_first_byte_ms
+                            else 0
+                        ),
+                        "values": stats.tts_first_byte_ms,
+                    },
+                    "total_latency_ms": {
+                        "p50": (
+                            statistics.median(stats.total_latency_ms)
+                            if stats.total_latency_ms
+                            else 0
+                        ),
+                        "values": stats.total_latency_ms,
+                    },
+                },
+                indent=2,
+            )
+        )
     else:
         print(stats.report())
 

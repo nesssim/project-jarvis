@@ -16,6 +16,10 @@ from shared.redis import close_redis_clients, create_redis_clients
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
+from stt.routes.transcribe import router as transcribe_router
+from stt.routes.transcribe_stream import router as transcribe_stream_router
+from stt.routes.vad_check import router as vad_router
+
 settings = load_settings()
 setup_logging(
     level=settings.logging.level, json_format=settings.logging.format == "json"
@@ -70,12 +74,7 @@ async def handle_shutdown(sig: signal.Signals) -> None:
     _shutdown_event.set()
 
 
-from stt.routes.transcribe import router as transcribe_router
-from stt.routes.transcribe_stream import router as transcribe_stream_router
-from stt.routes.vad_check import router as vad_router
-
 app = FastAPI(title="J.A.R.V.I.S. STT", version="0.1.0", lifespan=lifespan)
-
 setup_rate_limiter(app, limiter)
 
 app.include_router(transcribe_router)

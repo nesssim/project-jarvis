@@ -21,13 +21,12 @@ _VAD_TTL_SECONDS = 300
 def _evict_stale_vad() -> None:
     now = time.monotonic()
     stale = [
-        key
-        for key, (_, ts) in _VAD_INSTANCES.items()
-        if now - ts > _VAD_TTL_SECONDS
+        key for key, (_, ts) in _VAD_INSTANCES.items() if now - ts > _VAD_TTL_SECONDS
     ]
     for key in stale:
         logger.debug("evicting stale vad instance", session_id=key)
         del _VAD_INSTANCES[key]
+
 
 SAMPLE_RATE = 16000
 
@@ -86,8 +85,10 @@ async def check_vad(request: Request, session_id: str | None = None):
             silence_duration_ms=0.0,
             utterance_duration_ms=0.0,
         )
-
-    vad = _get_vad(session_id)
+    try:
+        vad = _get_vad(session_id)
+    except VADError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
     # Strip WAV header if present
     audio_data = body
@@ -97,9 +98,7 @@ async def check_vad(request: Request, session_id: str | None = None):
             offset = 12
             while offset + 8 <= len(body):
                 chunk_id = body[offset : offset + 4]
-                chunk_size = int.from_bytes(
-                    body[offset + 4 : offset + 8], "little"
-                )
+                chunk_size = int.from_bytes(body[offset + 4 : offset + 8], "little")
                 if chunk_id == b"data":
                     audio_data = body[offset + 8 : offset + 8 + chunk_size]
                     break
@@ -115,9 +114,8 @@ async def check_vad(request: Request, session_id: str | None = None):
         raise HTTPException(status_code=400, detail=str(e)) from e
 
     return VADResponse(
-        is_speech=vad.is_speaking or (
-            event is not None and event.type.value in ("speech_start", "speech")
-        ),
+        is_speech=vad.is_speaking
+        or (event is not None and event.type.value in ("speech_start", "speech")),
         probability=vad.last_probability,
         silence_duration_ms=vad.silence_ms,
         utterance_duration_ms=0.0,
@@ -131,7 +129,10 @@ async def reset_vad(session_id: str | None = None):
     If session_id is provided, only that session's VAD is reset.
     Otherwise, the default instance is reset.
     """
-    vad = _get_vad(session_id)
+    try:
+        vad = _get_vad(session_id)
+    except VADError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
     vad.reset()
     # Update timestamp on reset
     key: str = session_id if session_id is not None else "_default"
@@ -139,8 +140,6 @@ async def reset_vad(session_id: str | None = None):
         proc, _ = _VAD_INSTANCES[key]
         _VAD_INSTANCES[key] = (proc, time.monotonic())
     logger.debug(
-        "vad reset via api",
-        session_id=session_id,
-        active_instances=len(_VAD_INSTANCES),
+        "vad reset via api", session_id=session_id, active_instances=len(_VAD_INSTANCES)
     )
     return {"status": "ok"}

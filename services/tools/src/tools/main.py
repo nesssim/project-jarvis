@@ -61,10 +61,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         parameters={
             "type": "object",
             "properties": {
-                "query": {
-                    "type": "string",
-                    "description": "The search query",
-                },
+                "query": {"type": "string", "description": "The search query"},
                 "max_results": {
                     "type": "integer",
                     "description": "Maximum results to return",

@@ -8,7 +8,9 @@ import pytest
 from stt.whisper_stt import STTModelError, WhisperSTT
 
 
-def _make_segment(text: str, start: float = 0.0, end: float = 1.0, probability: float = 0.95):
+def _make_segment(
+    text: str, start: float = 0.0, end: float = 1.0, probability: float = 0.95
+):
     seg = MagicMock()
     seg.text = text
     seg.start = start

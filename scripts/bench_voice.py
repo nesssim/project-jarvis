@@ -23,17 +23,27 @@ FIXTURES_DIR = Path(__file__).resolve().parent.parent / "tests" / "fixtures" / "
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Voice round-trip latency benchmark")
-    p.add_argument("--orchestrator", default="http://localhost:8000", help="Orchestrator base URL")
-    p.add_argument("--iterations", "-n", type=int, default=5, help="Number of iterations")
-    p.add_argument("--fixture", default="utterance_short_16khz.wav", help="WAV fixture filename")
+    p.add_argument(
+        "--orchestrator", default="http://localhost:8000", help="Orchestrator base URL"
+    )
+    p.add_argument(
+        "--iterations", "-n", type=int, default=5, help="Number of iterations"
+    )
+    p.add_argument(
+        "--fixture", default="utterance_short_16khz.wav", help="WAV fixture filename"
+    )
     return p
 
 
-def benchmark_pipeline(client: httpx.Client, audio_bytes: bytes, iterations: int) -> dict:
+def benchmark_pipeline(
+    client: httpx.Client, audio_bytes: bytes, iterations: int
+) -> dict:
     times = []
     for i in range(iterations):
         t0 = time.perf_counter()
-        resp = client.post("/voice", content=audio_bytes, headers={"Content-Type": "audio/wav"})
+        resp = client.post(
+            "/voice", content=audio_bytes, headers={"Content-Type": "audio/wav"}
+        )
         elapsed = time.perf_counter() - t0
         times.append(elapsed)
         print(f"  Iteration {i + 1}: {elapsed:.3f}s", end="")
