@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import signal
+import threading
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -9,12 +10,14 @@ import redis.asyncio as redis
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from shared.config import load_settings
-from shared.http import setup_cors
+from shared.http import add_request_size_limit, setup_cors, setup_rate_limiter
 from shared.logging import get_logger, setup_logging
 from shared.redis import close_redis_clients, create_redis_clients
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.errors import RateLimitExceeded
+from slowapi import Limiter
 from slowapi.util import get_remote_address
+
+from tools.registry import ToolRegistry
+from tools.routes import router as tools_router
 
 settings = load_settings()
 setup_logging(
@@ -32,11 +35,12 @@ limiter = Limiter(
 
 
 async def check_redis() -> bool:
+    global redis_client
+    if redis_client is None:
+        return True
     try:
-        if redis_client:
-            await redis_client.ping()
-            return True
-        return False
+        await redis_client.ping()
+        return True
     except Exception:
         return False
 
@@ -47,13 +51,39 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info("starting tools service")
     redis_client, redis_binary = await create_redis_clients(settings)
 
-    loop = asyncio.get_event_loop()
-    for sig in (signal.SIGTERM, signal.SIGINT):
+    from tools.search import web_search
 
-        def _sig_handler(s: signal.Signals = sig) -> None:
-            asyncio.create_task(handle_shutdown(s))  # noqa: RUF006
+    app.state.tool_registry = ToolRegistry()
+    app.state.tool_registry.register(
+        name="web_search",
+        description="Search the web for current information",
+        handler=web_search,
+        parameters={
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "The search query",
+                },
+                "max_results": {
+                    "type": "integer",
+                    "description": "Maximum results to return",
+                    "default": 5,
+                },
+            },
+            "required": ["query"],
+        },
+    )
+    app.include_router(tools_router)
 
-        loop.add_signal_handler(sig, _sig_handler)
+    if threading.current_thread() is threading.main_thread():
+        loop = asyncio.get_event_loop()
+        for sig in (signal.SIGTERM, signal.SIGINT):
+
+            def _sig_handler(s: signal.Signals = sig) -> None:
+                asyncio.create_task(handle_shutdown(s))  # noqa: RUF006
+
+            loop.add_signal_handler(sig, _sig_handler)
 
     yield
 
@@ -70,10 +100,10 @@ async def handle_shutdown(sig: signal.Signals) -> None:
 
 app = FastAPI(title="J.A.R.V.I.S. Tools", version="0.1.0", lifespan=lifespan)
 
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
+setup_rate_limiter(app, limiter)
 
 setup_cors(app, settings)
+add_request_size_limit(app)
 
 
 @app.get("/health")

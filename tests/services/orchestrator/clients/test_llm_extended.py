@@ -5,15 +5,14 @@ from unittest.mock import AsyncMock, patch
 
 import httpx
 import pytest
-from shared.config import LLMConfig
-
-from services.orchestrator.src.orchestrator.clients.llm import (
+from orchestrator.clients.llm import (
     ModelNotFoundError,
     OllamaClient,
     OllamaConnectionError,
     OllamaError,
     ServiceUnavailableError,
 )
+from shared.config import LLMConfig
 
 
 @pytest.fixture

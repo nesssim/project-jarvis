@@ -3,12 +3,12 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 
 import pytest
-from shared.config import LLMConfig, Settings
-
-from services.orchestrator.src.orchestrator.clients.llm import (
+from orchestrator.clients.llm import (
     BaseLLMClient,
+    GroqClient,
     create_llm_client,
 )
+from shared.config import LLMConfig, Settings
 
 
 def test_create_llm_client_ollama() -> None:
@@ -26,10 +26,24 @@ def test_ollama_client_config_mapped() -> None:
     assert client.config.generation.max_tokens == 512
 
 
-def test_create_llm_client_groq_not_implemented() -> None:
+def test_create_llm_client_groq() -> None:
     settings = Settings(llm={"provider": "groq", "groq": {"api_key": "test-key"}})
-    with pytest.raises(NotImplementedError, match="Groq"):
-        create_llm_client(settings.llm)
+    client = create_llm_client(settings.llm)
+    assert isinstance(client, GroqClient)
+    assert client.config.provider == "groq"
+
+
+def test_groq_client_config_mapped() -> None:
+    settings = Settings(
+        llm={
+            "provider": "groq",
+            "groq": {"api_key": "test-key", "model": "llama-3.3-70b-versatile"},
+        }
+    )
+    client = create_llm_client(settings.llm)
+    assert isinstance(client, GroqClient)
+    assert client.config.groq.model == "llama-3.3-70b-versatile"
+    assert client.config.groq.api_key == "test-key"
 
 
 def test_create_llm_client_gemini_not_implemented() -> None:

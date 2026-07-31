@@ -1,24 +1,25 @@
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator
-from pathlib import Path
-from typing import Any
 
 import fakeredis.aioredis
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
-from pydantic import BaseModel
 from shared.config import Settings
 from shared.logging import setup_logging
 
-TEST_DIR = Path(__file__).parent
-FIXTURES_DIR = TEST_DIR / "fixtures"
 
+def make_audio_chunk(duration_ms: int = 100, sample_rate: int = 16000) -> bytes:
+    """Generate a synthetic audio chunk (440Hz sine wave) for testing."""
+    import math
 
-class HealthResponse(BaseModel):
-    status: str
-    dependencies: dict[str, bool]
+    num_samples = sample_rate * duration_ms // 1000
+    samples = bytearray()
+    for i in range(num_samples):
+        val = int(math.sin(2 * math.pi * 440 * i / sample_rate) * 8000)
+        samples.extend(val.to_bytes(2, "little", signed=True))
+    return bytes(samples)
 
 
 @pytest.fixture(scope="session")
@@ -48,13 +49,3 @@ def test_settings() -> Settings:
 async def async_client() -> AsyncGenerator[AsyncClient, None]:
     async with AsyncClient() as client:
         yield client
-
-
-def load_fixture(name: str) -> dict[str, Any]:
-    import json
-
-    path = FIXTURES_DIR / name
-    if not path.exists():
-        raise FileNotFoundError(f"Fixture not found: {path}")
-    with path.open() as f:
-        return json.load(f)

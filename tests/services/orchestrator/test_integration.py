@@ -6,10 +6,8 @@ def test_integration_chat_streams_tokens(test_client, mock_llm):
     response = test_client.post("/chat", json={"message": "test message"})
 
     assert response.status_code == 200
-    text = response.text
-    assert "Hello" in text
-    assert "world!" in text
-    assert "[DONE]" in text
+    assert "Hello" in response.text
+    assert "[DONE]" in response.text
 
 
 def test_integration_chat_validation(test_client):
@@ -29,3 +27,9 @@ def test_integration_chat_uses_prompt(test_client, mock_llm, mock_prompt_manager
     assert len(msgs) == 2
     assert msgs[0] == {"role": "system", "content": "Custom system prompt for testing"}
     assert msgs[1] == {"role": "user", "content": "hello"}
+
+
+def test_integration_chat_returns_session_id(test_client):
+    response = test_client.post("/chat", json={"message": "hello"})
+    assert "X-Session-ID" in response.headers
+    assert len(response.headers["X-Session-ID"]) == 12

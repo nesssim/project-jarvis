@@ -49,6 +49,7 @@ class GenerationConfig(BaseModel):
 
 class LLMConfig(BaseModel):
     provider: Literal["ollama", "groq", "gemini"] = "ollama"
+    max_context_tokens: int = 4096
     ollama: OllamaConfig = OllamaConfig()
     groq: GroqConfig = GroqConfig()
     gemini: GeminiConfig = GeminiConfig()
@@ -64,6 +65,7 @@ class WhisperConfig(BaseModel):
 class VADConfig(BaseModel):
     threshold: float = 0.5
     silence_duration_ms: int = 800
+    max_instances: int = 50
 
 
 class STTConfig(BaseModel):
@@ -75,6 +77,7 @@ class STTConfig(BaseModel):
 class PiperConfig(BaseModel):
     voice: str = "default"
     model_path: str = "/models/piper"
+    sample_rate: int = 22050
 
 
 class KokoroConfig(BaseModel):
@@ -97,6 +100,9 @@ class AudioConfig(BaseModel):
 class ListeningConfig(BaseModel):
     timeout_seconds: int = 5
     silence_threshold_ms: int = 800
+    max_utterance_seconds: int = 30
+    barge_in_enabled: bool = True
+    barge_in_jitter_ms: int = 200
 
 
 class ChromaDBConfig(BaseModel):
@@ -173,6 +179,20 @@ class AuthConfig(BaseModel):
     api_key: str = ""
 
 
+class InternalServiceUrls(BaseModel):
+    stt: str = "http://stt:8001"
+    tts: str = "http://tts:8002"
+    memory: str = "http://memory:8003"
+    tools: str = "http://tools:8004"
+
+
+class WakeWordConfig(BaseModel):
+    enabled: bool = False
+    model_path: str = "/models/wake-word"
+    sensitivity: float = 0.5
+    vad_cooldown_ms: int = 2000
+
+
 class ShutdownConfig(BaseModel):
     grace_period_seconds: int = 10
     force_exit_after_seconds: int = 15
@@ -207,7 +227,9 @@ class Settings(BaseSettings):
     logging: LoggingConfig = LoggingConfig()
     cors: CORSConfig = CORSConfig()
     auth: AuthConfig = AuthConfig()
+    wake_word: WakeWordConfig = WakeWordConfig()
     shutdown: ShutdownConfig = ShutdownConfig()
+    internal_urls: InternalServiceUrls = InternalServiceUrls()
 
     @classmethod
     def from_yaml(cls, path: Path) -> Settings:

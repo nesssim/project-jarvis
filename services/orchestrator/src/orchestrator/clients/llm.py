@@ -41,6 +41,67 @@ class BaseLLMClient(ABC):
     ) -> AsyncIterator[str]: ...
 
 
+class GroqClient(BaseLLMClient):
+    """Groq LLM client using OpenAI-compatible API."""
+
+    def __init__(self, config: LLMConfig) -> None:
+        super().__init__(config)
+        self._api_key = config.groq.api_key
+        self._model = config.groq.model or "llama-3.1-70b-versatile"
+        self._base_url = "https://api.groq.com/openai/v1"
+        self._timeout = 30
+        self._http: httpx.AsyncClient | None = None
+
+    async def _get_client(self) -> httpx.AsyncClient:
+        if self._http is None:
+            self._http = httpx.AsyncClient(
+                base_url=self._base_url,
+                timeout=self._timeout,
+                headers={
+                    "Authorization": f"Bearer {self._api_key}",
+                    "Content-Type": "application/json",
+                },
+            )
+        return self._http
+
+    async def generate(
+        self,
+        messages: list[dict[str, str]],
+        stream: bool = True,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+    ) -> AsyncIterator[str]:
+        client = await self._get_client()
+        payload = {
+            "model": self._model,
+            "messages": messages,
+            "stream": stream,
+            "max_tokens": max_tokens or 512,
+        }
+
+        async with client.stream("POST", "/chat/completions", json=payload) as resp:
+            if resp.status_code >= 400:
+                error_text = await resp.aread()
+                raise LLMError(f"Groq API error: {resp.status_code} {error_text}")
+
+            async for line in resp.aiter_lines():
+                if not line.startswith("data: "):
+                    continue
+                data_str = line[6:].strip()
+                if data_str == "[DONE]":
+                    break
+                data = json.loads(data_str)
+                delta = data.get("choices", [{}])[0].get("delta", {})
+                token = delta.get("content", "")
+                if token:
+                    yield token
+
+    async def close(self) -> None:
+        if self._http:
+            await self._http.aclose()
+            self._http = None
+
+
 class OllamaClient(BaseLLMClient):
     def __init__(self, config: LLMConfig) -> None:
         super().__init__(config)
@@ -129,8 +190,8 @@ def create_llm_client(config: LLMConfig) -> BaseLLMClient:
         case "ollama":
             return OllamaClient(config)
         case "groq":
-            raise NotImplementedError("Groq client coming in Phase 2")
+            return GroqClient(config)
         case "gemini":
-            raise NotImplementedError("Gemini client coming in Phase 2")
+            raise NotImplementedError("Gemini client not yet implemented")
         case _:
             raise ValueError(f"Unknown LLM provider: {config.provider}")

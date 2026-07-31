@@ -9,6 +9,7 @@ dependencies = [
     "structlog>=24.0",
     "pyyaml>=6.0",
     "python-dotenv>=1.0",
+    "sounddevice>=0.4",
 ]
 
 [build-system]

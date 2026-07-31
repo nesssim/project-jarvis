@@ -27,6 +27,7 @@ redis:
 
 llm:
   provider: "ollama"
+  max_context_tokens: 4096
   ollama:
     url: "http://ollama:11434"
     model: "qwen2.5:8b"
@@ -51,6 +52,7 @@ stt:
   vad:
     threshold: 0.5
     silence_duration_ms: 800
+    max_instances: 50
 
 tts:
   provider: "piper"
@@ -69,6 +71,15 @@ audio:
 listening:
   timeout_seconds: 5
   silence_threshold_ms: 800
+  max_utterance_seconds: 30
+  barge_in_enabled: true
+  barge_in_jitter_ms: 200
+
+wake_word:
+  enabled: false
+  model_path: "/models/wake-word"
+  sensitivity: 0.5
+  vad_cooldown_ms: 2000
 
 memory:
   short_term:

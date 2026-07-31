@@ -4,8 +4,7 @@ import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
-
-from services.orchestrator.src.orchestrator.cli import main
+from orchestrator.cli import main
 
 
 def test_cli_exits_when_no_message():
@@ -30,7 +29,7 @@ def test_cli_sends_message_and_streams(tmp_path):
     with (
         patch.object(sys, "argv", ["jarvis-chat", "hello"]),
         patch(
-            "services.orchestrator.src.orchestrator.cli.httpx.Client",
+            "orchestrator.cli.httpx.Client",
             return_value=mock_client,
         ),
     ):
